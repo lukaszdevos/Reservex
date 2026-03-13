@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
       - name: Run unit tests
-        run: uv run pytest tests/unit -v --tb=short
+        run: uv run pytest tests/unit -v --tb=short || ([ $? -eq 5 ] && echo "No tests collected yet" && exit 0)
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -81,4 +81,4 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://reservex:reservex@localhost:5432/reservex
           REDIS_URL: redis://localhost:6379
-        run: uv run pytest tests/integration -v --tb=short
+        run: uv run pytest tests/integration -v --tb=short || ([ $? -eq 5 ] && echo "No tests collected yet" && exit 0)
