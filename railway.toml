@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "echo 'ReserveX: app not deployed yet'"
+restartPolicyType = "never"
