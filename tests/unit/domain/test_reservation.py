@@ -1,8 +1,10 @@
+"""Unit tests for Reservation child entity."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from domain.reservation import Reservation
+from domain.ticketing.model import Reservation
 
 
 def make_reservation(expires_delta: timedelta) -> Reservation:

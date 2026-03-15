@@ -1,3 +1,5 @@
+"""Ticketing-context domain exceptions."""
+
 from __future__ import annotations
 
 
@@ -27,9 +29,3 @@ class LockNotAcquiredError(Exception):
     def __init__(self, resource: str) -> None:
         self.resource = resource
         super().__init__(f"Could not acquire lock on resource: {resource}")
-
-
-class PaymentDeclinedError(Exception):
-    def __init__(self, reason: str) -> None:
-        self.reason = reason
-        super().__init__(f"Payment declined: {reason}")
