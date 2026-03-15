@@ -39,6 +39,15 @@ At the beginning of every session, Claude Code must:
 - `infrastructure/` → imports everything
 - Claude Code must verify this rule before every commit
 
+**Bounded Context rule (Cosmic Python)**
+
+- `domain/` is organised into bounded contexts: `ticketing/`, `payment/`, `shared/`, `outbox/`
+- Each context owns its own model, events, exceptions, and repository Protocol
+- Cross-context communication happens only through domain events — never direct imports between contexts (except `shared/`)
+- One repository per aggregate root — repositories only return aggregates, never child entities
+- Aggregate roots collect domain events in `self.events: list[DomainEvent]`; the Unit of Work publishes them after commit
+- Repository API uses `add()` / `get()` naming (Cosmic Python convention)
+
 **Async rules**
 
 - Every function that touches I/O must be `async`
@@ -49,7 +58,7 @@ At the beginning of every session, Claude Code must:
 
 **Error handling**
 
-- Domain exceptions live in `src/domain/exceptions.py`
+- Domain exceptions live in the bounded context that owns them (e.g. `src/domain/ticketing/exceptions.py`)
 - Never catch bare `Exception` in domain or use case layers
 - Infrastructure layer catches and translates exceptions to HTTP responses
 - Always log with `structlog` — never with `print()`
@@ -329,13 +338,21 @@ reservex/
 ├── Makefile
 │
 ├── src/
-│   ├── domain/             # LAYER 1 — zero external imports
-│   │   ├── ticket.py       # Ticket entity + TicketStatus enum
-│   │   ├── reservation.py  # Reservation entity
-│   │   ├── events.py       # TicketReserved, PaymentCompleted, etc.
-│   │   ├── exceptions.py   # TicketAlreadyTaken, OptimisticLockConflict
-│   │   ├── repositories.py # Abstract interfaces (Protocol)
-│   │   └── gateways.py     # PaymentGateway, NotificationGateway (Protocol)
+│   ├── domain/             # LAYER 1 — zero external imports, DDD bounded contexts
+│   │   ├── shared/         # Shared kernel (used by all contexts)
+│   │   │   ├── event.py    # DomainEvent base dataclass
+│   │   │   └── gateways.py # NotificationGateway, DistributedLockGateway (Protocol)
+│   │   ├── ticketing/      # Ticketing bounded context
+│   │   │   ├── model.py    # Ticket (aggregate root) + Reservation (child entity) + TicketStatus
+│   │   │   ├── events.py   # TicketReserved, TicketReleased, TicketConfirmed
+│   │   │   ├── exceptions.py  # TicketAlreadyTaken, OptimisticLockConflict, etc.
+│   │   │   └── repository.py  # TicketRepository Protocol (add/get/get_for_update)
+│   │   ├── payment/        # Payment bounded context
+│   │   │   ├── events.py   # PaymentCompleted, PaymentFailed
+│   │   │   ├── exceptions.py  # PaymentDeclinedError
+│   │   │   └── gateway.py  # PaymentGateway Protocol (charge/refund)
+│   │   └── outbox/         # Transactional outbox context
+│   │       └── repository.py  # OutboxRepository Protocol
 │   │
 │   ├── use_cases/          # LAYER 2 — imports domain/ only
 │   │   ├── reserve_ticket.py
@@ -391,56 +408,68 @@ reservex/
 
 ## 4.3 Key Code Patterns
 
-**Domain entity — no external imports:**
+**Aggregate root — collects domain events, owns child entities:**
 
 ```python
-# src/domain/ticket.py
+# src/domain/ticketing/model.py
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from uuid import UUID
+from domain.shared.event import DomainEvent
+from domain.ticketing.events import TicketReserved, TicketReleased, TicketConfirmed
+from domain.ticketing.exceptions import TicketAlreadyTakenError
 
-class TicketStatus(Enum):
-    AVAILABLE = "available"
-    RESERVED  = "reserved"
-    CONFIRMED = "confirmed"
-    RELEASED  = "released"
+RESERVATION_TTL: timedelta = timedelta(minutes=5)
 
 @dataclass
-class Ticket:
-    id:          int
-    event_id:    int
+class Reservation:          # child entity — never instantiate outside Ticket
+    ticket_id: int
+    user_id: int
+    created_at: datetime
+    expires_at: datetime
+    id: int = 0
+
+    def is_expired(self) -> bool:
+        return datetime.now(UTC) > self.expires_at
+
+@dataclass
+class Ticket:               # aggregate root
+    id: int
+    event_id: int
     seat_number: str
-    status:      TicketStatus = TicketStatus.AVAILABLE
-    reserved_by: UUID | None  = None
-    version:     int          = 0
+    status: TicketStatus = field(default=TicketStatus.AVAILABLE)
+    reserved_by: int | None = field(default=None)
+    version: int = field(default=0)
+    reservation: Reservation | None = field(default=None)
+    events: list[DomainEvent] = field(default_factory=list)
 
-    def reserve(self, user_id: UUID) -> None:
+    def reserve(self, user_id: int) -> Reservation:
         if self.status != TicketStatus.AVAILABLE:
-            from domain.exceptions import TicketAlreadyTakenError
             raise TicketAlreadyTakenError(self.id)
-        self.status      = TicketStatus.RESERVED
+        now = datetime.now(UTC)
+        self.status = TicketStatus.RESERVED
         self.reserved_by = user_id
-        self.version    += 1
-
-    def release(self) -> None:
-        self.status      = TicketStatus.AVAILABLE
-        self.reserved_by = None
-        self.version    += 1
+        self.version += 1
+        self.reservation = Reservation(
+            ticket_id=self.id, user_id=user_id,
+            created_at=now, expires_at=now + RESERVATION_TTL,
+        )
+        self.events.append(TicketReserved(ticket_id=self.id, user_id=user_id))
+        return self.reservation
 ```
 
-**Repository interface — Protocol, not ABC:**
+**Repository interface — Protocol, add/get naming (Cosmic Python):**
 
 ```python
-# src/domain/repositories.py
+# src/domain/ticketing/repository.py
 from typing import Protocol
-from domain.ticket import Ticket
+from domain.ticketing.model import Ticket
 
 class TicketRepository(Protocol):
+    async def add(self, ticket: Ticket) -> None: ...          # insert or update
     async def get(self, ticket_id: int) -> Ticket | None: ...
     async def get_for_update(self, ticket_id: int) -> Ticket | None: ...
-    async def save(self, ticket: Ticket) -> None: ...
-    async def release(self, ticket_id: int) -> None: ...
 ```
 
 **Use case — imports domain only:**
@@ -448,14 +477,14 @@ class TicketRepository(Protocol):
 ```python
 # src/use_cases/reserve_ticket.py
 from dataclasses import dataclass
-from uuid import UUID
-from domain.repositories import TicketRepository
-from domain.exceptions import TicketAlreadyTakenError
+from domain.ticketing.repository import TicketRepository
+from domain.ticketing.exceptions import TicketAlreadyTakenError
 
 @dataclass
 class ReserveTicketRequest:
     ticket_id: int
-    user_id:   UUID
+    user_id: int
+    idempotency_key: str
 
 class ReserveTicketUseCase:
     def __init__(self, ticket_repo: TicketRepository) -> None:
@@ -466,8 +495,8 @@ class ReserveTicketUseCase:
         if ticket is None:
             return UseCaseResponse(success=False, message="Ticket not found")
         try:
-            ticket.reserve(request.user_id)
-            await self._repo.save(ticket)
+            reservation = ticket.reserve(request.user_id)   # aggregate creates child
+            await self._repo.add(ticket)                     # saves ticket + reservation
             return UseCaseResponse(success=True, message="Reserved")
         except TicketAlreadyTakenError as exc:
             return UseCaseResponse(success=False, message=str(exc))
@@ -994,56 +1023,52 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 
 -----
 
-## PHASE 1 — Domain Layer
+## PHASE 1 — Domain Layer ✅ COMPLETE
 
 > Rule: zero external imports in `src/domain/`. Python stdlib only.
+> Structure: DDD bounded contexts — ticketing/, payment/, shared/, outbox/
+> Pattern: Cosmic Python aggregate + repository conventions.
 
-### P1.1 — Core entities
+### P1.1 — Shared kernel
 
-- [ ] `src/domain/ticket.py` — `Ticket` dataclass: `id`, `event_id`, `seat_number`, `status`, `reserved_by`, `version`
-- [ ] `src/domain/ticket.py` — `TicketStatus` enum: `AVAILABLE`, `RESERVED`, `CONFIRMED`, `RELEASED`
-- [ ] `src/domain/ticket.py` — `Ticket.reserve(user_id)` with status validation
-- [ ] `src/domain/ticket.py` — `Ticket.release()` resetting status and `reserved_by`
-- [ ] `src/domain/ticket.py` — `Ticket.confirm()` setting `CONFIRMED`
-- [ ] `src/domain/reservation.py` — `Reservation` dataclass: `id`, `ticket_id`, `user_id`, `created_at`, `expires_at`
-- [ ] `src/domain/reservation.py` — `Reservation.is_expired() -> bool`
+- [x] `src/domain/shared/event.py` — `DomainEvent` dataclass: `event_id`, `occurred_at`, `correlation_id`
+- [x] `src/domain/shared/gateways.py` — `NotificationGateway(Protocol)`: `send_confirmation`, `send_expiry`
+- [x] `src/domain/shared/gateways.py` — `DistributedLockGateway(Protocol)`: async context manager `lock(resource, ttl_ms)`
 
-### P1.2 — Domain events
+### P1.2 — Ticketing bounded context
 
-- [ ] `src/domain/events.py` — base `DomainEvent` dataclass: `event_id`, `occurred_at`, `correlation_id`
-- [ ] `src/domain/events.py` — `TicketReserved(DomainEvent)`: `ticket_id`, `user_id`
-- [ ] `src/domain/events.py` — `TicketReleased(DomainEvent)`: `ticket_id`, `reason`
-- [ ] `src/domain/events.py` — `PaymentCompleted(DomainEvent)`: `reservation_id`, `amount_cents`
-- [ ] `src/domain/events.py` — `PaymentFailed(DomainEvent)`: `reservation_id`, `error`
-- [ ] `src/domain/events.py` — `TicketConfirmed(DomainEvent)`
+- [x] `src/domain/ticketing/model.py` — `TicketStatus` enum: `AVAILABLE`, `RESERVED`, `CONFIRMED`, `RELEASED`
+- [x] `src/domain/ticketing/model.py` — `Reservation` child entity: `id`, `ticket_id`, `user_id`, `created_at`, `expires_at`
+- [x] `src/domain/ticketing/model.py` — `Reservation.is_expired() -> bool`
+- [x] `src/domain/ticketing/model.py` — `Ticket` aggregate root: `id`, `event_id`, `seat_number`, `status`, `reserved_by`, `version`, `reservation`, `events`
+- [x] `src/domain/ticketing/model.py` — `Ticket.reserve(user_id)` creates Reservation (TTL=5min), bumps version, emits `TicketReserved`
+- [x] `src/domain/ticketing/model.py` — `Ticket.release(reason)` resets status, clears reservation, emits `TicketReleased`
+- [x] `src/domain/ticketing/model.py` — `Ticket.confirm()` sets CONFIRMED, emits `TicketConfirmed`
+- [x] `src/domain/ticketing/events.py` — `TicketReserved`, `TicketReleased`, `TicketConfirmed`
+- [x] `src/domain/ticketing/exceptions.py` — `TicketAlreadyTakenError`, `TicketNotFoundError`, `OptimisticLockConflict`, `LockNotAcquiredError`
+- [x] `src/domain/ticketing/repository.py` — `TicketRepository(Protocol)`: `add`, `get`, `get_for_update`
 
-### P1.3 — Domain exceptions
+### P1.3 — Payment bounded context
 
-- [ ] `src/domain/exceptions.py` — `TicketAlreadyTakenError(Exception)` with `ticket_id`
-- [ ] `src/domain/exceptions.py` — `TicketNotFoundError(Exception)` with `ticket_id`
-- [ ] `src/domain/exceptions.py` — `OptimisticLockConflict(Exception)` with `ticket_id`, `expected_version`
-- [ ] `src/domain/exceptions.py` — `LockNotAcquiredError(Exception)` with `resource`
-- [ ] `src/domain/exceptions.py` — `PaymentDeclinedError(Exception)` with `reason`
+- [x] `src/domain/payment/events.py` — `PaymentCompleted`, `PaymentFailed`
+- [x] `src/domain/payment/exceptions.py` — `PaymentDeclinedError`
+- [x] `src/domain/payment/gateway.py` — `PaymentGateway(Protocol)`: `charge`, `refund`
 
-### P1.4 — Repository interfaces (Protocol)
+### P1.4 — Outbox context
 
-- [ ] `src/domain/repositories.py` — `TicketRepository(Protocol)`: `get`, `get_for_update`, `save`, `release`
-- [ ] `src/domain/repositories.py` — `ReservationRepository(Protocol)`: `create`, `get`, `mark_expired`
-- [ ] `src/domain/repositories.py` — `OutboxRepository(Protocol)`: `save_message`, `get_unpublished`, `mark_published`
+- [x] `src/domain/outbox/repository.py` — `OutboxRepository(Protocol)`: `save_message`, `get_unpublished`, `mark_published`
 
-### P1.5 — Gateway interfaces (Protocol)
+### P1.5 — Unit tests: domain layer
 
-- [ ] `src/domain/gateways.py` — `PaymentGateway(Protocol)`: `charge`, `refund`
-- [ ] `src/domain/gateways.py` — `NotificationGateway(Protocol)`: `send_confirmation`, `send_expiry`
-- [ ] `src/domain/gateways.py` — `DistributedLockGateway(Protocol)`: async context manager `lock(resource, ttl_ms)`
-
-### P1.6 — Unit tests: domain layer
-
-- [ ] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` changes status to RESERVED
-- [ ] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` raises `TicketAlreadyTakenError` when status != AVAILABLE
-- [ ] `tests/unit/domain/test_ticket.py` — `Ticket.release()` restores AVAILABLE and clears `reserved_by`
-- [ ] `tests/unit/domain/test_ticket.py` — `version` increments on every state change
-- [ ] `tests/unit/domain/test_reservation.py` — `Reservation.is_expired()` returns True after `expires_at`
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` changes status to RESERVED
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` raises `TicketAlreadyTakenError` when status != AVAILABLE
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` creates Reservation as child entity
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.release()` restores AVAILABLE and clears reservation
+- [x] `tests/unit/domain/test_ticket.py` — `version` increments on every state change
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` appends `TicketReserved` event
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.release()` appends `TicketReleased` event
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.confirm()` appends `TicketConfirmed` event
+- [x] `tests/unit/domain/test_reservation.py` — `Reservation.is_expired()` returns True/False correctly
 
 -----
 
@@ -1058,18 +1083,17 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 
 ### P2.2 — ReserveTicketUseCase
 
-- [ ] `src/use_cases/reserve_ticket.py` — `ReserveTicketUseCase` class with DI: `ticket_repo`, `reservation_repo`
+- [ ] `src/use_cases/reserve_ticket.py` — `ReserveTicketUseCase` class with DI: `ticket_repo`
 - [ ] `execute(request)` — call `ticket_repo.get_for_update()`
-- [ ] Call `ticket.reserve(user_id)` — domain logic lives on the entity
-- [ ] Persist ticket via `ticket_repo.save()`
-- [ ] Create `Reservation` with `expires_at = now + 5min`, persist via `reservation_repo.create()`
+- [ ] Call `ticket.reserve(user_id)` — aggregate creates Reservation internally (TTL=5min)
+- [ ] Persist ticket via `ticket_repo.add()` — Reservation is saved as part of the aggregate
 - [ ] Return `UseCaseResponse(success=True, data={...})`
 - [ ] Handle `TicketAlreadyTakenError` → `UseCaseResponse(success=False, ...)`
 
 ### P2.3 — ReleaseTicketUseCase
 
 - [ ] `src/use_cases/release_ticket.py` — `ReleaseTicketUseCase` with DI: `ticket_repo`
-- [ ] `execute(request)` — call `ticket_repo.release(ticket_id)`
+- [ ] `execute(request)` — load ticket, call `ticket.release(reason)`, persist via `ticket_repo.add()`
 - [ ] Return `UseCaseResponse(success=True)`
 
 ### P2.4 — SAGA Orchestrator
