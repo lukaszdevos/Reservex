@@ -1124,7 +1124,7 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 ### P2.7 — Unit tests: use cases
 
 - [ ] `tests/unit/use_cases/test_reserve_ticket.py` — happy path with in-memory repo
-- [ ] Test: `Ticket.reserve()` called once, `ticket_repo.save()` called once
+- [ ] Test: `Ticket.reserve()` called once, `ticket_repo.add()` called once
 - [ ] Test: `get_for_update()` returns `None` → `UseCaseResponse(success=False)`
 - [ ] Test: `TicketAlreadyTakenError` → `success=False`
 - [ ] `tests/unit/use_cases/test_saga.py` — happy path: all 4 steps called in order
@@ -1142,9 +1142,7 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 - [ ] `_store: dict[int, Ticket]` and `_locks: dict[int, asyncio.Lock]`
 - [ ] `get(ticket_id)` → copy from `_store`
 - [ ] `get_for_update(ticket_id)` → acquire lock, return ticket
-- [ ] `save(ticket)` → write to `_store`, release lock
-- [ ] `release(ticket_id)` → set `status=AVAILABLE`
-- [ ] `src/adapters/repositories/memory_reservation_repo.py` — same pattern
+- [ ] `add(ticket)` → write to `_store` (persists Ticket + its Reservation child), release lock
 
 ### P3.2 — PostgreSQL repository
 
@@ -1154,10 +1152,9 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 - [ ] `src/infrastructure/database/session.py` — `async_session_factory`
 - [ ] `src/infrastructure/database/session.py` — `get_session()` async generator
 - [ ] `src/adapters/repositories/postgres_ticket_repo.py` — `PostgresTicketRepository`
-- [ ] Implement `get(ticket_id)` — SELECT + map model → entity
+- [ ] Implement `get(ticket_id)` — SELECT + map model → entity (eager-load Reservation)
 - [ ] Implement `get_for_update(ticket_id)` — SELECT with `.with_for_update()`
-- [ ] Implement `save(ticket)` — UPDATE with version check
-- [ ] Implement `release(ticket_id)` — UPDATE status=AVAILABLE
+- [ ] Implement `add(ticket)` — UPSERT Ticket + Reservation with version check
 
 ### P3.3 — Alembic migrations
 
@@ -1209,7 +1206,7 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 
 - [ ] `src/infrastructure/api/dependencies.py` — `get_session()` async generator
 - [ ] `get_ticket_repo(session)` → `PostgresTicketRepository(session)`
-- [ ] `get_reserve_use_case(ticket_repo, reservation_repo)` → `ReserveTicketUseCase(...)`
+- [ ] `get_reserve_use_case(ticket_repo)` → `ReserveTicketUseCase(ticket_repo=ticket_repo)`
 - [ ] `get_saga(ticket_repo, payment_gateway, notifier)` → `TicketPurchaseSaga(...)`
 - [ ] `get_redis()` → singleton redis client
 
@@ -1416,14 +1413,14 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 |---|---|---|---|
 | Pre-Phase-0 Setup | 15 | 15 | ✅ |
 | P0 — Bootstrap | 22 | 22 | ✅ |
-| P1 — Domain | 24 | 0 | ⬜ |
+| P1 — Domain | 24 | 24 | ✅ |
 | P2 — Use Cases | 24 | 0 | ⬜ |
-| P3 — Adapters | 20 | 0 | ⬜ |
+| P3 — Adapters | 19 | 0 | ⬜ |
 | P4 — Infrastructure | 28 | 0 | ⬜ |
 | P5 — Integration Tests | 16 | 0 | ⬜ |
 | P6 — Frontend | 28 | 0 | ⬜ |
 | P7 — Observability | 18 | 0 | ⬜ |
-| **Total** | **195** | **37** | 19% |
+| **Total** | **194** | **61** | 31% |
 
 -----
 
