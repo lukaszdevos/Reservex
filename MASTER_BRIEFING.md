@@ -369,7 +369,7 @@ reservex/
 │   │   ├── gateways/
 │   │   │   ├── stripe_gateway.py       # Semaphore-guarded
 │   │   │   ├── mock_payment_gateway.py # for tests
-│   │   │   └── redis_gateway.py        # distributed lock
+│   │   │   └── redis_lock_gateway.py   # distributed lock
 │   │   ├── serializers.py
 │   │   └── presenters.py
 │   │
@@ -749,9 +749,9 @@ async def save(self, ticket: Ticket) -> None:
 Use when: multiple application instances (Kubernetes, Railway replicas).
 
 ```python
-# src/adapters/gateways/redis_gateway.py
+# src/adapters/gateways/redis_lock_gateway.py
 @asynccontextmanager
-async def distributed_lock(self, resource: str, ttl_ms: int = 5000):
+async def _lock_ctx(self, resource: str, ttl_ms: int = 5000):
     key   = f"lock:ticket:{resource}"
     token = str(uuid4())
     acquired = await self._redis.set(key, token, nx=True, px=ttl_ms)
@@ -1143,58 +1143,58 @@ See `PHASE2_COMPLETE.md` for full summary of what was built.
 
 ### P3.1 — In-memory repository (for tests)
 
-- [ ] `src/adapters/repositories/memory_ticket_repo.py` — `MemoryTicketRepository`
-- [ ] `_store: dict[int, Ticket]` and `_locks: dict[int, asyncio.Lock]`
-- [ ] `get(ticket_id)` → copy from `_store`
-- [ ] `get_for_update(ticket_id)` → acquire lock, return ticket
-- [ ] `add(ticket)` → write to `_store` (persists Ticket + its Reservation child), release lock
+- [x] `src/adapters/repositories/memory_ticket_repo.py` — `MemoryTicketRepository`
+- [x] `_store: dict[int, Ticket]` and `_locks: dict[int, asyncio.Lock]`
+- [x] `get(ticket_id)` → copy from `_store`
+- [x] `get_for_update(ticket_id)` → acquire lock, return ticket
+- [x] `add(ticket)` → write to `_store` (persists Ticket + its Reservation child), release lock
 
 ### P3.2 — PostgreSQL repository
 
-- [ ] `src/infrastructure/database/models.py` — `TicketModel(Base)` with `version` column
-- [ ] `src/infrastructure/database/models.py` — `ReservationModel(Base)` with `expires_at`
-- [ ] `src/infrastructure/database/models.py` — `OutboxMessageModel(Base)` with `published`
-- [ ] `src/infrastructure/database/session.py` — `async_session_factory`
-- [ ] `src/infrastructure/database/session.py` — `get_session()` async generator
-- [ ] `src/adapters/repositories/postgres_ticket_repo.py` — `PostgresTicketRepository`
-- [ ] Implement `get(ticket_id)` — SELECT + map model → entity (eager-load Reservation)
-- [ ] Implement `get_for_update(ticket_id)` — SELECT with `.with_for_update()`
-- [ ] Implement `add(ticket)` — UPSERT Ticket + Reservation with version check
+- [x] `src/infrastructure/database/models.py` — `TicketModel(Base)` with `version` column
+- [x] `src/infrastructure/database/models.py` — `ReservationModel(Base)` with `expires_at`
+- [x] `src/infrastructure/database/models.py` — `OutboxMessageModel(Base)` with `published`
+- [x] `src/infrastructure/database/session.py` — `async_session_factory`
+- [x] `src/infrastructure/database/session.py` — `get_session()` async generator
+- [x] `src/adapters/repositories/postgres_ticket_repo.py` — `PostgresTicketRepository`
+- [x] Implement `get(ticket_id)` — SELECT + map model → entity (eager-load Reservation)
+- [x] Implement `get_for_update(ticket_id)` — SELECT with `.with_for_update()`
+- [x] Implement `add(ticket)` — UPSERT Ticket + Reservation with version check
 
 ### P3.3 — Alembic migrations
 
-- [ ] `uv add alembic` and `alembic init src/infrastructure/database/migrations`
-- [ ] Migration `001_create_tickets.py` — `tickets` table with `version`
-- [ ] Migration `002_create_reservations.py` — `reservations` with `expires_at`
-- [ ] Migration `003_create_outbox.py` — `outbox_messages` with `published`
-- [ ] Migration `004_create_ticket_events.py` — `ticket_events` (event sourcing)
-- [ ] Verify: `uv run alembic upgrade head` → all tables green
+- [x] `uv add alembic` and `alembic init src/infrastructure/database/migrations`
+- [x] Migration `001_create_tickets.py` — `tickets` table with `version`
+- [x] Migration `002_create_reservations.py` — `reservations` with `expires_at`
+- [x] Migration `003_create_outbox.py` — `outbox_messages` with `published`
+- [x] Migration `004_create_ticket_events.py` — `ticket_events` (event sourcing)
+- [x] Verify: `uv run alembic upgrade head` → all tables green (requires running Postgres)
 
 ### P3.4 — Redis distributed lock gateway
 
-- [ ] `src/adapters/gateways/redis_gateway.py` — `RedisDistributedLockGateway`
-- [ ] `distributed_lock(resource, ttl_ms)` as `asynccontextmanager`
-- [ ] `redis.set(key, token, nx=True, px=ttl_ms)` — acquire
-- [ ] Lua script: atomic check-and-delete on release
-- [ ] Raise `LockNotAcquiredError` when `set` returns `None`
+- [x] `src/adapters/gateways/redis_lock_gateway.py` — `RedisDistributedLockGateway`
+- [x] `lock(resource, ttl_ms)` as `asynccontextmanager` (matches `DistributedLockGateway` Protocol)
+- [x] `redis.set(key, token, nx=True, px=ttl_ms)` — acquire
+- [x] Lua script: atomic check-and-delete on release
+- [x] Raise `LockNotAcquiredError` when `set` returns `None`
 
 ### P3.5 — Stripe gateway
 
-- [ ] `src/adapters/gateways/stripe_gateway.py` — `StripeGateway` with `asyncio.Semaphore(10)`
-- [ ] `charge(amount_cents, payment_method)` — `async with self._semaphore`
-- [ ] `refund(charge_id)` — guarded by semaphore
-- [ ] `src/adapters/gateways/mock_payment_gateway.py` — configurable `should_fail: bool`
+- [x] `src/adapters/gateways/stripe_gateway.py` — `StripeGateway` with `asyncio.Semaphore(10)`
+- [x] `charge(reservation_id, amount_cents, payment_method)` — `async with self._semaphore`
+- [x] `refund(charge_id)` — guarded by semaphore
+- [x] `src/adapters/gateways/mock_payment_gateway.py` — configurable `should_fail: bool`
 
 ### P3.6 — Serializers & presenters
 
-- [ ] `src/adapters/serializers.py` — `ticket_to_dict(ticket: Ticket) -> dict`
-- [ ] `src/adapters/serializers.py` — `reservation_to_dict(res: Reservation) -> dict`
-- [ ] `src/adapters/presenters.py` — `present_reserve_response(uc_response) -> dict`
+- [x] `src/adapters/serializers.py` — `ticket_to_dict(ticket: Ticket) -> dict`
+- [x] `src/adapters/serializers.py` — `reservation_to_dict(res: Reservation) -> dict`
+- [x] `src/adapters/presenters.py` — `present_reserve_response(uc_response) -> dict`
 
 ### P3.7 — Unit tests: adapters
 
-- [ ] `tests/unit/adapters/test_memory_ticket_repo.py` — `get_for_update` blocks second concurrent access
-- [ ] `tests/unit/adapters/test_serializers.py` — round-trip: entity → dict → compare fields
+- [x] `tests/unit/adapters/test_memory_ticket_repo.py` — `get_for_update` blocks second concurrent access
+- [x] `tests/unit/adapters/test_serializers.py` — round-trip: entity → dict → compare fields
 
 -----
 
@@ -1419,13 +1419,13 @@ See `PHASE2_COMPLETE.md` for full summary of what was built.
 | Pre-Phase-0 Setup | 15 | 15 | ✅ |
 | P0 — Bootstrap | 22 | 22 | ✅ |
 | P1 — Domain | 27 | 27 | ✅ |
-| P2 — Use Cases | 24 | 0 | ⬜ |
-| P3 — Adapters | 19 | 0 | ⬜ |
+| P2 — Use Cases | 24 | 24 | ✅ |
+| P3 — Adapters | 19 | 19 | ✅ |
 | P4 — Infrastructure | 28 | 0 | ⬜ |
 | P5 — Integration Tests | 16 | 0 | ⬜ |
 | P6 — Frontend | 28 | 0 | ⬜ |
 | P7 — Observability | 18 | 0 | ⬜ |
-| **Total** | **197** | **64** | 32% |
+| **Total** | **197** | **107** | 54% |
 
 -----
 
