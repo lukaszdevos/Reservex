@@ -7,13 +7,17 @@ from dataclasses import dataclass
 from domain.shared.event import DomainEvent
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PaymentCompleted(DomainEvent):
-    reservation_id: int = 0
-    amount_cents: int = 0
+    """Emitted when a payment is successfully charged."""
+
+    reservation_id: int
+    amount_cents: int
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PaymentFailed(DomainEvent):
-    reservation_id: int = 0
-    error: str = ""
+    """Emitted when a payment charge fails."""
+
+    reservation_id: int
+    error: str

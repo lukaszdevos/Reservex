@@ -7,18 +7,24 @@ from dataclasses import dataclass
 from domain.shared.event import DomainEvent
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TicketReserved(DomainEvent):
-    ticket_id: int = 0
-    user_id: int = 0
+    """Emitted when a ticket is successfully reserved."""
+
+    ticket_id: int
+    user_id: int
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TicketReleased(DomainEvent):
-    ticket_id: int = 0
-    reason: str = ""
+    """Emitted when a reservation is released back to AVAILABLE."""
+
+    ticket_id: int
+    reason: str
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TicketConfirmed(DomainEvent):
-    ticket_id: int = 0
+    """Emitted when a ticket is confirmed after successful payment."""
+
+    ticket_id: int
