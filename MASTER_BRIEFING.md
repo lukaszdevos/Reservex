@@ -1075,65 +1075,67 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 
 -----
 
-## PHASE 2 — Use Cases Layer
+## PHASE 2 — Use Cases Layer ✅ COMPLETE
+
+See `PHASE2_COMPLETE.md` for full summary of what was built.
 
 ### P2.1 — Request / Response objects
 
-- [ ] `src/use_cases/request_objects.py` — `ReserveTicketRequest`: `ticket_id`, `user_id`, `idempotency_key`
-- [ ] `src/use_cases/request_objects.py` — `ReleaseTicketRequest`: `ticket_id`, `reason`
-- [ ] `src/use_cases/request_objects.py` — `ProcessPaymentRequest`: `reservation_id`, `amount_cents`, `payment_method`
-- [ ] `src/use_cases/response_objects.py` — `UseCaseResponse`: `success`, `message`, `data: dict | None`
+- [x] `src/use_cases/request_objects.py` — `ReserveTicketRequest`: `ticket_id`, `user_id`, `idempotency_key`
+- [x] `src/use_cases/request_objects.py` — `ReleaseTicketRequest`: `ticket_id`, `reason`
+- [x] `src/use_cases/request_objects.py` — `ProcessPaymentRequest`: `reservation_id`, `amount_cents`, `payment_method`
+- [x] `src/use_cases/response_objects.py` — `UseCaseResponse`: `success`, `message`, `data: dict | None`
 
 ### P2.2 — ReserveTicketUseCase
 
-- [ ] `src/use_cases/reserve_ticket.py` — `ReserveTicketUseCase` class with DI: `ticket_repo`
-- [ ] `execute(request)` — call `ticket_repo.get_for_update()`
-- [ ] Call `ticket.reserve(user_id)` — aggregate creates Reservation internally (TTL=5min)
-- [ ] Persist ticket via `ticket_repo.add()` — Reservation is saved as part of the aggregate
-- [ ] Return `UseCaseResponse(success=True, data={...})`
-- [ ] Handle `TicketAlreadyTakenError` → `UseCaseResponse(success=False, ...)`
+- [x] `src/use_cases/reserve_ticket.py` — `ReserveTicketUseCase` class with DI: `ticket_repo`
+- [x] `execute(request)` — call `ticket_repo.get_for_update()`
+- [x] Call `ticket.reserve(user_id)` — aggregate creates Reservation internally (TTL=5min)
+- [x] Persist ticket via `ticket_repo.add()` — Reservation is saved as part of the aggregate
+- [x] Return `UseCaseResponse(success=True, data={...})`
+- [x] Handle `TicketAlreadyTakenError` → `UseCaseResponse(success=False, ...)`
 
 ### P2.3 — ReleaseTicketUseCase
 
-- [ ] `src/use_cases/release_ticket.py` — `ReleaseTicketUseCase` with DI: `ticket_repo`
-- [ ] `execute(request)` — load ticket, call `ticket.release(reason)`, persist via `ticket_repo.add()`
-- [ ] Return `UseCaseResponse(success=True)`
+- [x] `src/use_cases/release_ticket.py` — `ReleaseTicketUseCase` with DI: `ticket_repo`
+- [x] `execute(request)` — load ticket, call `ticket.release(reason)`, persist via `ticket_repo.add()`
+- [x] Return `UseCaseResponse(success=True)`
 
 ### P2.4 — SAGA Orchestrator
 
-- [ ] `src/use_cases/saga.py` — `SagaStep` dataclass: `name`, `action`, `compensation`
-- [ ] `src/use_cases/saga.py` — `SagaContext` dataclass: `ticket_id`, `user_id`, `reservation_id`, `correlation_id`
-- [ ] `src/use_cases/saga.py` — `SagaResult` dataclass: `success`, `failed_step`, `reason`
-- [ ] `src/use_cases/saga.py` — `TicketPurchaseSaga` class with DI: `ticket_repo`, `payment_gateway`, `notifier`
-- [ ] Define `_steps` list: validate, reserve, charge, notify
-- [ ] Implement `execute(ctx)` — iterate steps, collect `executed[]`
-- [ ] Implement `_compensate(ctx, executed)` — iterate `reversed(executed)`
-- [ ] Each compensation in `try/except` — log CRITICAL, do not stop rollback
-- [ ] Return `SagaResult.success()` or `SagaResult.failed(step, reason)`
+- [x] `src/use_cases/saga.py` — `SagaStep` dataclass: `name`, `action`, `compensation`
+- [x] `src/use_cases/saga.py` — `SagaContext` dataclass: `ticket_id`, `user_id`, `reservation_id`, `correlation_id`
+- [x] `src/use_cases/saga.py` — `SagaResult` dataclass: `success`, `failed_step`, `reason`
+- [x] `src/use_cases/saga.py` — `TicketPurchaseSaga` class with DI: `ticket_repo`, `payment_gateway`, `notifier`
+- [x] Define `_steps` list: validate, reserve, charge, notify
+- [x] Implement `execute(ctx)` — iterate steps, collect `executed[]`
+- [x] Implement `_compensate(ctx, executed)` — iterate `reversed(executed)`
+- [x] Each compensation in `try/except` — log CRITICAL, do not stop rollback
+- [x] Return `SagaResult(success=True)` or `SagaResult(success=False, failed_step, reason)`
 
 ### P2.5 — asyncio timeout wrapper
 
-- [ ] `execute_with_timeout(request, timeout_seconds=300)` on `ReserveTicketUseCase`
-- [ ] `async with asyncio.timeout(timeout_seconds)`
-- [ ] In `except TimeoutError`: call `ReleaseTicketUseCase` + `NotificationGateway.send_expiry()`
+- [x] `execute_with_timeout(request, timeout_seconds=300)` on `ReserveTicketUseCase`
+- [x] `async with asyncio.timeout(timeout_seconds)`
+- [x] In `except TimeoutError`: call `ReleaseTicketUseCase` + `NotificationGateway.send_expiry()`
 
 ### P2.6 — Parallel validations
 
-- [ ] `src/use_cases/validators.py` — `validate_ticket_available(ticket_id, repo)`
-- [ ] `src/use_cases/validators.py` — `validate_user_not_blacklisted(user_id, repo)`
-- [ ] `src/use_cases/validators.py` — `validate_payment_method(method_id, gateway)`
-- [ ] In SAGA `_validate` step: run all 3 via `asyncio.TaskGroup`
+- [x] `src/use_cases/validators.py` — `validate_ticket_available(ticket_id, repo)`
+- [x] `src/use_cases/validators.py` — `validate_user_not_blacklisted(user_id, repo)`
+- [x] `src/use_cases/validators.py` — `validate_payment_method(method_id, gateway)`
+- [x] In SAGA `_validate` step: run all 3 via `asyncio.TaskGroup`
 
 ### P2.7 — Unit tests: use cases
 
-- [ ] `tests/unit/use_cases/test_reserve_ticket.py` — happy path with in-memory repo
-- [ ] Test: `Ticket.reserve()` called once, `ticket_repo.add()` called once
-- [ ] Test: `get_for_update()` returns `None` → `UseCaseResponse(success=False)`
-- [ ] Test: `TicketAlreadyTakenError` → `success=False`
-- [ ] `tests/unit/use_cases/test_saga.py` — happy path: all 4 steps called in order
-- [ ] Test: failure at step 3 → `_compensate` called for steps 1 and 2 in reverse
-- [ ] Test: failure at step 1 → no compensation called
-- [ ] Test: compensation failure does not interrupt rollback of remaining steps
+- [x] `tests/unit/use_cases/test_reserve_ticket.py` — happy path with in-memory repo
+- [x] Test: `Ticket.reserve()` called once, `ticket_repo.add()` called once
+- [x] Test: `get_for_update()` returns `None` → `UseCaseResponse(success=False)`
+- [x] Test: `TicketAlreadyTakenError` → `success=False`
+- [x] `tests/unit/use_cases/test_saga.py` — happy path: all 4 steps called in order
+- [x] Test: failure at step 3 → `_compensate` called for steps 1 and 2 in reverse
+- [x] Test: failure at step 1 → no compensation called
+- [x] Test: compensation failure does not interrupt rollback of remaining steps
 
 -----
 

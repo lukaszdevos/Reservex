@@ -27,3 +27,12 @@ class DistributedLockGateway(Protocol):
     """
 
     def lock(self, resource: str, ttl_ms: int) -> AbstractAsyncContextManager[None]: ...
+
+
+class UserBlacklistGateway(Protocol):
+    """Check whether a user is blacklisted from making reservations.
+
+    Implemented by: RedisUserBlacklistGateway, StubUserBlacklistGateway.
+    """
+
+    async def is_blacklisted(self, user_id: int) -> bool: ...
