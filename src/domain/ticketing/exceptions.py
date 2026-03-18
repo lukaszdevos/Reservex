@@ -15,6 +15,19 @@ class TicketNotFoundError(Exception):
         super().__init__(f"Ticket {ticket_id} not found")
 
 
+class InvalidStateTransitionError(Exception):
+    """Raised when a state-changing method is called from an invalid status."""
+
+    def __init__(self, ticket_id: int, current: str, expected: str) -> None:
+        self.ticket_id = ticket_id
+        self.current = current
+        self.expected = expected
+        super().__init__(
+            f"Ticket {ticket_id}: cannot transition from {current!r} "
+            f"(expected {expected!r})"
+        )
+
+
 class OptimisticLockConflict(Exception):
     def __init__(self, ticket_id: int, expected_version: int) -> None:
         self.ticket_id = ticket_id

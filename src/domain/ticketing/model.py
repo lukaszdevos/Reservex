@@ -16,7 +16,10 @@ from enum import Enum
 
 from domain.shared.event import DomainEvent
 from domain.ticketing.events import TicketConfirmed, TicketReleased, TicketReserved
-from domain.ticketing.exceptions import TicketAlreadyTakenError
+from domain.ticketing.exceptions import (
+    InvalidStateTransitionError,
+    TicketAlreadyTakenError,
+)
 
 RESERVATION_TTL: timedelta = timedelta(minutes=5)
 
@@ -25,7 +28,7 @@ class TicketStatus(Enum):
     AVAILABLE = "available"
     RESERVED = "reserved"
     CONFIRMED = "confirmed"
-    RELEASED = "released"
+    RELEASED = "released"  # terminal: permanently deactivated / event cancelled
 
 
 @dataclass
@@ -94,7 +97,14 @@ class Ticket:
         self.events.append(TicketReleased(ticket_id=self.id, reason=reason))
 
     def confirm(self) -> None:
-        """Confirm ticket after successful payment."""
+        """Confirm ticket after successful payment.
+
+        Raises: InvalidStateTransitionError if status != RESERVED.
+        """
+        if self.status != TicketStatus.RESERVED:
+            raise InvalidStateTransitionError(
+                self.id, self.status.value, TicketStatus.RESERVED.value
+            )
         self.status = TicketStatus.CONFIRMED
         self.version += 1
         self.events.append(TicketConfirmed(ticket_id=self.id))
