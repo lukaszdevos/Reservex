@@ -1043,9 +1043,9 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 - [x] `src/domain/ticketing/model.py` — `Ticket` aggregate root: `id`, `event_id`, `seat_number`, `status`, `reserved_by`, `version`, `reservation`, `events`
 - [x] `src/domain/ticketing/model.py` — `Ticket.reserve(user_id)` creates Reservation (TTL=5min), bumps version, emits `TicketReserved`
 - [x] `src/domain/ticketing/model.py` — `Ticket.release(reason)` resets status, clears reservation, emits `TicketReleased`
-- [x] `src/domain/ticketing/model.py` — `Ticket.confirm()` sets CONFIRMED, emits `TicketConfirmed`
+- [x] `src/domain/ticketing/model.py` — `Ticket.confirm()` validates RESERVED state, sets CONFIRMED, emits `TicketConfirmed`
 - [x] `src/domain/ticketing/events.py` — `TicketReserved`, `TicketReleased`, `TicketConfirmed`
-- [x] `src/domain/ticketing/exceptions.py` — `TicketAlreadyTakenError`, `TicketNotFoundError`, `OptimisticLockConflict`, `LockNotAcquiredError`
+- [x] `src/domain/ticketing/exceptions.py` — `TicketAlreadyTakenError`, `TicketNotFoundError`, `OptimisticLockConflict`, `LockNotAcquiredError`, `InvalidStateTransitionError`
 - [x] `src/domain/ticketing/repository.py` — `TicketRepository(Protocol)`: `add`, `get`, `get_for_update`
 
 ### P1.3 — Payment bounded context
@@ -1068,6 +1068,9 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 - [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` appends `TicketReserved` event
 - [x] `tests/unit/domain/test_ticket.py` — `Ticket.release()` appends `TicketReleased` event
 - [x] `tests/unit/domain/test_ticket.py` — `Ticket.confirm()` appends `TicketConfirmed` event
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.confirm()` raises `InvalidStateTransitionError` when not RESERVED
+- [x] `tests/unit/domain/test_ticket.py` — `Ticket.reserve()` raises `TicketAlreadyTakenError` after CONFIRMED
+- [x] `tests/unit/domain/test_ticket.py` — full lifecycle event sequence is correct
 - [x] `tests/unit/domain/test_reservation.py` — `Reservation.is_expired()` returns True/False correctly
 
 -----
@@ -1413,14 +1416,14 @@ See `PHASE0_COMPLETE.md` for full summary of what was built.
 |---|---|---|---|
 | Pre-Phase-0 Setup | 15 | 15 | ✅ |
 | P0 — Bootstrap | 22 | 22 | ✅ |
-| P1 — Domain | 24 | 24 | ✅ |
+| P1 — Domain | 27 | 27 | ✅ |
 | P2 — Use Cases | 24 | 0 | ⬜ |
 | P3 — Adapters | 19 | 0 | ⬜ |
 | P4 — Infrastructure | 28 | 0 | ⬜ |
 | P5 — Integration Tests | 16 | 0 | ⬜ |
 | P6 — Frontend | 28 | 0 | ⬜ |
 | P7 — Observability | 18 | 0 | ⬜ |
-| **Total** | **194** | **61** | 31% |
+| **Total** | **197** | **64** | 32% |
 
 -----
 
