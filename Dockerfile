@@ -9,4 +9,4 @@ COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
 ENV PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
-CMD ["uvicorn", "src.infrastructure.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn src.infrastructure.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
