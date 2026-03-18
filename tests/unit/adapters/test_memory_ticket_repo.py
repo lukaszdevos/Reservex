@@ -11,7 +11,9 @@ from adapters.repositories.memory_ticket_repo import MemoryTicketRepository
 from domain.ticketing.model import Ticket, TicketStatus
 
 
-def make_ticket(ticket_id: int = 1, status: TicketStatus = TicketStatus.AVAILABLE) -> Ticket:
+def make_ticket(
+    ticket_id: int = 1, status: TicketStatus = TicketStatus.AVAILABLE
+) -> Ticket:
     return Ticket(id=ticket_id, event_id=10, seat_number="A1", status=status)
 
 
