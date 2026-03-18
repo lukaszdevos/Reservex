@@ -1222,6 +1222,21 @@ See `PHASE2_COMPLETE.md` for full summary of what was built.
 - [ ] `POST /tickets/{ticket_id}/release` — call `ReleaseTicketUseCase.execute()`
 - [ ] `GET /tickets/{ticket_id}/status` — return current status
 
+### P4.3.1 — Re-enable Railway auto-deploy
+
+> Minimum deploy gate: P4.1 + P4.2 + P4.3 must be complete before enabling.
+
+- [ ] In `.github/workflows/deploy.yml` replace `workflow_dispatch` trigger with:
+  ```yaml
+  on:
+    workflow_run:
+      workflows: ["CI"]
+      branches: [main]
+      types: [completed]
+  ```
+- [ ] Add back job condition: `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
+- [ ] Push and verify Railway deploys successfully
+
 ### P4.4 — API routes: payments
 
 - [ ] `POST /payments/charge` — call `ProcessPaymentUseCase`

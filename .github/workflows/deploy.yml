@@ -1,9 +1,7 @@
 name: Deploy
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch: # manually triggered only — re-enable auto-deploy after P4.1-P4.3
 
 jobs:
   deploy:
