@@ -5,7 +5,10 @@ from __future__ import annotations
 import pytest
 
 from domain.ticketing.events import TicketConfirmed, TicketReleased, TicketReserved
-from domain.ticketing.exceptions import TicketAlreadyTakenError
+from domain.ticketing.exceptions import (
+    InvalidStateTransitionError,
+    TicketAlreadyTakenError,
+)
 from domain.ticketing.model import Ticket, TicketStatus
 
 
@@ -84,3 +87,34 @@ def test_confirm_appends_ticket_confirmed_event() -> None:
     confirmed = ticket.events[-1]
     assert isinstance(confirmed, TicketConfirmed)
     assert confirmed.ticket_id == ticket.id
+
+
+def test_confirm_raises_when_not_reserved() -> None:
+    """confirm() must only be called on a RESERVED ticket."""
+    ticket = make_ticket()  # status = AVAILABLE
+    with pytest.raises(InvalidStateTransitionError) as exc_info:
+        ticket.confirm()
+    assert exc_info.value.ticket_id == ticket.id
+    assert exc_info.value.current == TicketStatus.AVAILABLE.value
+    assert exc_info.value.expected == TicketStatus.RESERVED.value
+
+
+def test_reserve_raises_after_confirm() -> None:
+    """Once CONFIRMED, a ticket cannot be reserved again."""
+    ticket = make_ticket()
+    ticket.reserve(user_id=1)
+    ticket.confirm()
+    with pytest.raises(TicketAlreadyTakenError):
+        ticket.reserve(user_id=2)
+
+
+def test_events_accumulate_across_state_changes() -> None:
+    """Full lifecycle produces events in correct order."""
+    ticket = make_ticket()
+    ticket.reserve(user_id=1)
+    ticket.release(reason="timeout")
+    ticket.reserve(user_id=2)
+    ticket.confirm()
+    types = [type(e).__name__ for e in ticket.events]
+    expected = ["TicketReserved", "TicketReleased", "TicketReserved", "TicketConfirmed"]
+    assert types == expected
