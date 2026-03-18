@@ -17,6 +17,7 @@ dependencies = [
     "reportlab>=4.1",
     "slowapi>=0.1",
     "alembic>=1.13",
+    "stripe>=14.4.1",
 ]
 
 [dependency-groups]
