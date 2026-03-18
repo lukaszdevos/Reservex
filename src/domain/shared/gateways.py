@@ -23,7 +23,7 @@ class NotificationGateway(Protocol):
 class DistributedLockGateway(Protocol):
     """Acquire distributed locks for critical sections.
 
-    Implemented by: RedisLockGateway.
+    Implemented by: RedisDistributedLockGateway.
     """
 
     def lock(self, resource: str, ttl_ms: int) -> AbstractAsyncContextManager[None]: ...
