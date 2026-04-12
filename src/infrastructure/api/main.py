@@ -11,21 +11,26 @@ import logging
 from collections.abc import AsyncGenerator
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from starlette.responses import FileResponse
 
 from infrastructure.api.middleware.idempotency import IdempotencyMiddleware
 from infrastructure.api.middleware.rate_limit import configure_limiter
-from infrastructure.api.routes import payments, tickets
+from infrastructure.api.routes import demo, payments, tickets
 from infrastructure.api.websockets.seat_map import SeatMapBroadcaster, ws_router
 from infrastructure.observability.logging import configure_structlog
 from infrastructure.observability.metrics import configure_metrics
 from infrastructure.observability.tracing import configure_otel
 from infrastructure.settings import settings
 from infrastructure.workers.outbox_relay import outbox_relay_worker
+
+STATIC_DIR = Path(__file__).resolve().parent.parent.parent.parent / "static"
 
 _log = logging.getLogger(__name__)
 
@@ -85,9 +90,25 @@ def create_app() -> FastAPI:
 
     app.include_router(tickets.router, prefix="/tickets", tags=["tickets"])
     app.include_router(payments.router, prefix="/payments", tags=["payments"])
+    app.include_router(demo.router, prefix="/api/demo", tags=["demo"])
     app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 
     app.mount("/metrics", make_asgi_app())
+
+    if STATIC_DIR.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=STATIC_DIR / "assets"),
+            name="static-assets",
+        )
+
+        @app.get("/{full_path:path}")
+        async def serve_spa(full_path: str) -> FileResponse:
+            """Serve frontend SPA — fallback to index.html."""
+            file = STATIC_DIR / full_path
+            if file.is_file():
+                return FileResponse(file)
+            return FileResponse(STATIC_DIR / "index.html")
 
     return app
 
