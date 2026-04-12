@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     otel_exporter_otlp_endpoint: str = "http://localhost:4317"
     service_name: str = "reservex"
+    reservation_expiry_interval_seconds: float = 1.0
+    reservation_expiry_batch_size: int = 100
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

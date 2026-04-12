@@ -68,9 +68,10 @@ async def test_get_for_update_blocks_second_concurrent_access() -> None:
 
     async def task_b() -> None:
         await asyncio.sleep(0.01)  # ensure A acquires first
-        await repo.get_for_update(ticket.id)
+        locked = await repo.get_for_update(ticket.id)
         acquired_order.append(2)
-        await repo.add(ticket)
+        if locked is not None and locked.status == TicketStatus.AVAILABLE:
+            await repo.add(locked)
 
     await asyncio.gather(task_a(), task_b())
 

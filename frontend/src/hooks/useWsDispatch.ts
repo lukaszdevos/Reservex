@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { WsMessage, SagaStep, Seat, SeatStatus, ConcurrencyLayer } from '../types'
+import type { WsMessage } from '../types'
 import { useStore } from '../store/useStore'
 
 export function useWsDispatch(messages: WsMessage[]) {
@@ -15,29 +15,29 @@ export function useWsDispatch(messages: WsMessage[]) {
 
   useEffect(() => {
     if (messages.length === 0) {
-      processedCountRef.current = 0;
-      return;
+      processedCountRef.current = 0
+      return
     }
 
-    const unprocessed = messages.slice(processedCountRef.current);
-    processedCountRef.current = messages.length;
+    const unprocessed = messages.slice(processedCountRef.current)
+    processedCountRef.current = messages.length
 
     for (const msg of unprocessed) {
       switch (msg.type) {
         case 'seats_init':
-          setSeats(msg.seats as Seat[])
+          setSeats(msg.seats)
           break
 
         case 'seat_update':
-          updateSeat(msg.seat_id as number, msg.status as SeatStatus)
+          updateSeat(msg.seat_id, msg.status)
           break
 
         case 'saga_update':
-          setSagaSteps(msg.steps as SagaStep[])
+          setSagaSteps(msg.steps)
           break
 
         case 'timeout_progress':
-          setTimeoutProgress(msg.percent as number)
+          setTimeoutProgress(msg.percent)
           setTimeoutActive(true)
           break
 
@@ -48,14 +48,14 @@ export function useWsDispatch(messages: WsMessage[]) {
 
         case 'semaphore_update':
           setSemaphore({
-            active: msg.active as number,
-            queued: msg.queued as number,
-            total: (msg.total as number) ?? 10,
+            active: msg.active,
+            queued: msg.queued,
+            total: msg.total ?? 10,
           })
           break
 
         case 'layer_active':
-          setActiveLayer(msg.layer as ConcurrencyLayer)
+          setActiveLayer(msg.layer)
           break
 
         case 'layer_idle':
@@ -66,13 +66,8 @@ export function useWsDispatch(messages: WsMessage[]) {
           addLogEntry({
             id: crypto.randomUUID(),
             timestamp: new Date().toLocaleTimeString(),
-            type: (msg.level as string) === 'error' ? 'error'
-              : (msg.level as string) === 'warn' ? 'warn'
-              : (msg.level as string) === 'success' ? 'success'
-              : (msg.level as string) === 'db' ? 'db'
-              : (msg.level as string) === 'saga' ? 'saga'
-              : 'info',
-            message: msg.message as string,
+            type: msg.level,
+            message: msg.message,
           })
           break
       }

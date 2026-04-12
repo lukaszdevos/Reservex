@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 const PILLARS = [
-  { icon: '🔀', label: 'asyncio', detail: 'Coroutines, TaskGroup, Semaphore, timeout' },
+  { icon: '🔀', label: 'asyncio', detail: 'Coroutines, TaskGroup, Semaphore, workers' },
   { icon: '🐘', label: 'PostgreSQL', detail: 'SELECT FOR UPDATE · optimistic version column' },
-  { icon: '⚡', label: 'Redis', detail: 'Distributed Redlock · Streams for outbox relay' },
+  { icon: '⚡', label: 'Redis', detail: 'SET NX lock · Streams for outbox relay' },
   { icon: '🧩', label: 'Clean Arch', detail: 'Domain → Use Cases → Adapters → Infra' },
   { icon: '🎯', label: 'SAGA', detail: 'Orchestrated compensation on distributed failure' },
   { icon: '📦', label: 'Outbox', detail: 'Atomic dual-write eliminator, zero lost events' },
@@ -53,9 +53,9 @@ export function IntroBanner() {
             </span>
           </h1>
           <p className="mt-1 text-xs text-text-dim leading-relaxed max-w-2xl">
-            A production-grade system demonstrating advanced Python concurrency, distributed-systems
-            reliability patterns, and Clean Architecture. Every button triggers{' '}
-            <span className="text-text font-medium">real backend mechanisms</span> — no mocks.
+            A production-oriented system demonstrating Python concurrency, distributed-systems
+            reliability patterns, and Clean Architecture. Demo controls stream live backend events;
+            core reservation mechanisms are backed by integration tests against PostgreSQL and Redis.
             Watch the Seat Map, SAGA tracker, and Event Log react in real time via WebSocket.
           </p>
         </div>
@@ -87,7 +87,7 @@ export function IntroBanner() {
         <span className="text-accent-light">Arch:</span>{' '}
         Domain (no deps) → Use Cases → Adapters → Infrastructure.{' '}
         <span className="text-accent-light">Locking:</span>{' '}
-        Pessimistic (FOR UPDATE) · Optimistic (version) · Distributed (Redlock).
+        Pessimistic (FOR UPDATE) · Optimistic (version) · Redis SET NX.
       </p>
     </div>
   )

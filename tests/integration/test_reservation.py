@@ -10,10 +10,12 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from adapters.repositories.postgres_ticket_repo import PostgresTicketRepository
 from domain.ticketing.model import TicketStatus
+from infrastructure.database.models import OutboxMessageModel, TicketEventModel
 from use_cases.request_objects import ReserveTicketRequest
 from use_cases.reserve_ticket import ReserveTicketUseCase
 
@@ -34,6 +36,7 @@ async def test_reserve_ticket_happy_path(
     assert response.success is True
     assert response.data is not None
     assert response.data["ticket_id"] == 1
+    assert response.data["reservation_id"] != 0
 
 
 @pytest.mark.asyncio
@@ -92,3 +95,37 @@ async def test_second_reserve_on_same_ticket_fails(
 
     assert first.success is True
     assert second.success is False
+
+
+@pytest.mark.asyncio
+async def test_reserve_persists_ticket_event_and_outbox_message(
+    db_session: AsyncSession, ticket_factory: Any
+) -> None:
+    """Saving a reserved ticket writes the event log and outbox in one transaction."""
+    await ticket_factory(id=5, event_id=1, seat_number="A5")
+
+    repo = PostgresTicketRepository(db_session)
+    uc = ReserveTicketUseCase(ticket_repo=repo)
+    response = await uc.execute(
+        ReserveTicketRequest(ticket_id=5, user_id=42, idempotency_key="k5")
+    )
+
+    assert response.success is True
+
+    event_result = await db_session.execute(
+        select(TicketEventModel).where(TicketEventModel.ticket_id == 5)
+    )
+    ticket_event = event_result.scalar_one()
+    assert ticket_event.event_type == "ticket.reserved"
+    assert ticket_event.payload["ticket_id"] == 5
+    assert ticket_event.payload["user_id"] == 42
+
+    outbox_result = await db_session.execute(
+        select(OutboxMessageModel).where(
+            OutboxMessageModel.event_type == "ticket.reserved",
+            OutboxMessageModel.payload["ticket_id"].as_integer() == 5,
+        )
+    )
+    outbox_message = outbox_result.scalar_one()
+    assert outbox_message.published is False
+    assert outbox_message.payload["ticket_id"] == 5

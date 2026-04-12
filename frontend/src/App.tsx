@@ -31,24 +31,21 @@ function Dashboard() {
   useWsDispatch(messages)
 
   return (
-    <div className="flex-1 grid grid-cols-[280px_1fr_300px] gap-4 p-4 min-h-0 overflow-hidden">
-      {/* Left column — Scenarios + controls */}
-      <div className="flex flex-col gap-4 overflow-y-auto hide-scrollbar">
+    <div className="flex-1 grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)_300px] gap-4 p-3 sm:p-4 min-h-0 overflow-y-auto xl:overflow-hidden">
+      <div className="flex flex-col gap-4 min-w-0 xl:overflow-y-auto hide-scrollbar">
         <ScenarioPanel />
         <SagaVisualizer />
         <TimeoutBar />
         <SemaphoreGauge />
       </div>
 
-      {/* Center — Seat Map + Layers + Metrics */}
-      <div className="flex flex-col gap-4 overflow-y-auto hide-scrollbar">
+      <div className="flex flex-col gap-4 min-w-0 xl:overflow-y-auto hide-scrollbar">
         <SeatMap />
         <ConcurrencyLayers />
         <MetricsDashboard />
       </div>
 
-      {/* Right column — Event Log (fixed height, internal scroll) */}
-      <div className="flex flex-col min-h-0">
+      <div className="flex flex-col min-h-0 min-w-0">
         <EventLog />
       </div>
     </div>
@@ -58,7 +55,7 @@ function Dashboard() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col h-screen bg-bg text-text overflow-hidden">
+      <div className="flex flex-col min-h-screen xl:h-screen bg-bg text-text overflow-x-hidden xl:overflow-hidden">
         <Header />
         <div className="flex-shrink-0">
           <IntroBanner />

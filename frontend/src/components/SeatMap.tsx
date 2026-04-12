@@ -48,11 +48,11 @@ export function SeatMap() {
 
   return (
     <div className="bg-surface rounded-lg border border-border p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wider">
           Seat Map (Live WebSocket)
         </h2>
-        <div className="flex gap-3 text-[10px] font-mono text-text-dim">
+        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-text-dim">
           <Legend color="emerald" label="available" />
           <Legend color="amber" label="reserved" />
           <Legend color="blue" label="confirmed" />
@@ -64,7 +64,7 @@ export function SeatMap() {
       </div>
       <div className="w-full h-1 bg-accent/30 rounded mb-4" />
 
-      <div className="grid grid-cols-12 gap-1.5">
+      <div className="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-12 gap-1.5">
         {seats.map((seat) => (
           <SeatCell key={seat.id} {...seat} />
         ))}

@@ -22,7 +22,7 @@ export function ConcurrencyLayers() {
       <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wider mb-3">
         Concurrency Layers
       </h2>
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {LAYERS.map((layer) => {
           const isActive = activeLayer === layer.id
           return (
@@ -32,7 +32,7 @@ export function ConcurrencyLayers() {
                 flex-1 flex flex-col items-center py-4 px-3 rounded-md border transition-all
                 ${
                   isActive
-                    ? 'border-accent bg-accent/10 text-accent-light shadow-[0_0_12px_rgba(124,58,237,0.3)]'
+                    ? 'border-accent bg-accent/10 text-accent-light shadow-[0_0_12px_rgba(15,159,142,0.3)]'
                     : 'border-border bg-surface-alt text-text-dim'
                 }
               `}

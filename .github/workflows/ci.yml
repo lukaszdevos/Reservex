@@ -82,3 +82,37 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://reservex:reservex@localhost:5432/reservex
           REDIS_URL: redis://localhost:6379
         run: uv run pytest tests/integration -v --tb=short || ([ $? -eq 5 ] && echo "No tests collected yet" && exit 0)
+
+  load-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run load smoke tests
+        run: uv run pytest tests/load -v --tb=short
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build

@@ -29,6 +29,7 @@ from infrastructure.observability.metrics import configure_metrics
 from infrastructure.observability.tracing import configure_otel
 from infrastructure.settings import settings
 from infrastructure.workers.outbox_relay import outbox_relay_worker
+from infrastructure.workers.reservation_expiry import reservation_expiry_worker
 
 STATIC_DIR = Path(__file__).resolve().parent.parent.parent.parent / "static"
 
@@ -63,12 +64,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         outbox_relay_worker(session_factory, redis_client),
         name="outbox_relay",
     )
+    expiry_task = asyncio.create_task(
+        reservation_expiry_worker(
+            session_factory,
+            interval_seconds=settings.reservation_expiry_interval_seconds,
+            batch_size=settings.reservation_expiry_batch_size,
+        ),
+        name="reservation_expiry",
+    )
     _log.info("reservex startup complete environment=%s", settings.environment)
 
     yield
 
     relay_task.cancel()
-    await asyncio.gather(relay_task, return_exceptions=True)
+    expiry_task.cancel()
+    await asyncio.gather(relay_task, expiry_task, return_exceptions=True)
     process_pool.shutdown(wait=False)
     thread_pool.shutdown(wait=False)
     await redis_client.aclose()

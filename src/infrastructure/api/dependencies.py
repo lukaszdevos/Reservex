@@ -28,7 +28,12 @@ async def get_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
     """Yield an AsyncSession from the app-scoped session factory."""
     factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with factory() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
@@ -50,10 +55,7 @@ TicketRepoDep = Annotated[PostgresTicketRepository, Depends(get_ticket_repo)]
 
 
 def get_reserve_use_case(ticket_repo: TicketRepoDep) -> ReserveTicketUseCase:
-    return ReserveTicketUseCase(
-        ticket_repo=ticket_repo,
-        notifier=StubNotificationGateway(),
-    )
+    return ReserveTicketUseCase(ticket_repo=ticket_repo)
 
 
 ReserveUseCaseDep = Annotated[ReserveTicketUseCase, Depends(get_reserve_use_case)]

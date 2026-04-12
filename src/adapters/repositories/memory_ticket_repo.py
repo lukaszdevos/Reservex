@@ -7,7 +7,7 @@ Implements: TicketRepository (domain.ticketing.repository)
 import asyncio
 import copy
 
-from domain.ticketing.model import Ticket
+from domain.ticketing.model import Ticket, TicketStatus
 
 
 class MemoryTicketRepository:
@@ -37,6 +37,8 @@ class MemoryTicketRepository:
         if ticket is None:
             lock.release()
             return None
+        if ticket.status != TicketStatus.AVAILABLE:
+            lock.release()
         return copy.deepcopy(ticket)
 
     async def add(self, ticket: Ticket) -> None:

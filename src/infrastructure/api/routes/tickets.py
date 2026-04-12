@@ -57,13 +57,13 @@ async def reserve_ticket(
     request: Request,
     use_case: ReserveUseCaseDep,
 ) -> JSONResponse:
-    """Reserve a ticket for a user with optional 5-minute timeout."""
+    """Reserve a ticket for a user; expiry is handled by a background worker."""
     req = ReserveTicketRequest(
         ticket_id=ticket_id,
         user_id=body.user_id,
         idempotency_key=body.idempotency_key,
     )
-    response = await use_case.execute_with_timeout(req)
+    response = await use_case.execute(req)
     status = 200 if response.success else 409
     return JSONResponse(present_reserve_response(response), status_code=status)
 

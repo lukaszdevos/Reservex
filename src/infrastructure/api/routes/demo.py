@@ -1,8 +1,9 @@
 """Demo scenario API routes for the frontend interactive dashboard.
 
 Layer: infrastructure/api/routes
-Each scenario triggers real backend mechanisms and streams events
-via WebSocket.
+Scenarios stream events via WebSocket for the dashboard. Some routes are
+visual demonstrations; the core mechanisms are covered by backend use cases
+and integration tests against PostgreSQL and Redis.
 """
 
 from __future__ import annotations

@@ -52,7 +52,7 @@ export function MetricsDashboard() {
       <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wider mb-3">
         Metrics
       </h2>
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
         <Tile label="Requests" value={metrics.requests} />
         <Tile label="Conflicts" value={metrics.conflicts} />
         <Tile label="WS Clients" value={metrics.ws_clients} />
@@ -74,7 +74,7 @@ export function MetricsDashboard() {
             <Line
               type="monotone"
               dataKey="throughput"
-              stroke="#7c3aed"
+              stroke="#0f9f8e"
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}

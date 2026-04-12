@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { WsMessage } from '../types'
+import { parseWsMessage } from './wsMessages'
 
 const MAX_RETRIES = 10
 const BASE_DELAY_MS = 500
@@ -10,13 +11,16 @@ export function useWebSocket(url: string) {
   const [messages, setMessages] = useState<WsMessage[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const retriesRef = useRef(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const connectRef = useRef<() => void>(() => undefined)
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = url.startsWith('ws') ? url : `${protocol}//${window.location.host}${url}`
+    const wsUrl = url.startsWith('ws')
+      ? url
+      : `${protocol}//${window.location.host}${url}`
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
@@ -26,8 +30,10 @@ export function useWebSocket(url: string) {
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data) as WsMessage
-        setMessages((prev) => [...prev.slice(-99), data])
+        const data = parseWsMessage(JSON.parse(event.data) as unknown)
+        if (data !== null) {
+          setMessages((prev) => [...prev.slice(-99), data])
+        }
       } catch {
         // ignore non-JSON messages
       }
@@ -42,7 +48,7 @@ export function useWebSocket(url: string) {
           MAX_DELAY_MS,
         )
         retriesRef.current += 1
-        timerRef.current = setTimeout(connect, delay)
+        timerRef.current = setTimeout(() => connectRef.current(), delay)
       }
     }
 
@@ -58,6 +64,10 @@ export function useWebSocket(url: string) {
       wsRef.current.send(JSON.stringify(data))
     }
   }, [])
+
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
 
   useEffect(() => {
     connect()

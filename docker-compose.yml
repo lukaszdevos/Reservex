@@ -1,4 +1,23 @@
 services:
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://reservex:reservex@postgres:5432/reservex
+      REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: sk_test_placeholder
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - reservex-network
+
   postgres:
     image: postgres:16
     environment:

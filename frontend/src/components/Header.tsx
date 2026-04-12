@@ -4,7 +4,7 @@ export function Header() {
   const connected = useStore((s) => s.wsConnected)
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface">
+    <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-6 py-4 border-b border-border bg-surface">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-bold text-text tracking-tight">
           ReserveX

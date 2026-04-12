@@ -19,7 +19,7 @@ export function SemaphoreGauge() {
             key={i}
             className={`
               flex-1 h-6 w-5 shrink-0 rounded-sm transition-colors duration-200
-              ${i < active ? 'bg-accent shadow-[0_0_8px_rgba(124,58,237,0.4)]' : 'bg-surface-alt border border-border'}
+              ${i < active ? 'bg-accent shadow-[0_0_8px_rgba(15,159,142,0.4)]' : 'bg-surface-alt border border-border'}
             `}
           />
         ))}

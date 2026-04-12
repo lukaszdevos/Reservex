@@ -4,6 +4,16 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ['recharts'],
+          state: ['@tanstack/react-query', 'zustand'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

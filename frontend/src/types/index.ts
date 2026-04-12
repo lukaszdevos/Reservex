@@ -46,7 +46,13 @@ export interface SemaphoreState {
   total: number
 }
 
-export interface WsMessage {
-  type: string
-  [key: string]: unknown
-}
+export type WsMessage =
+  | { type: 'seats_init'; seats: Seat[] }
+  | { type: 'seat_update'; seat_id: number; status: SeatStatus }
+  | { type: 'saga_update'; steps: SagaStep[] }
+  | { type: 'timeout_progress'; percent: number }
+  | { type: 'timeout_done' }
+  | { type: 'semaphore_update'; active: number; queued: number; total?: number }
+  | { type: 'layer_active'; layer: ConcurrencyLayer }
+  | { type: 'layer_idle' }
+  | { type: 'log'; level: EventLogType; message: string }
