@@ -98,4 +98,4 @@ ticket data.
 ReserveX is a strong backend/concurrency portfolio project with a frontend demo.
 It is not a complete commercial ticketing product yet. Known non-goals in the
 current version include user authentication, a real checkout UI, production
-Stripe credential wiring, and database migrations on container startup.
+Stripe credential wiring, and production-grade auth/tenant isolation.

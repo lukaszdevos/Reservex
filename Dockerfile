@@ -17,8 +17,9 @@ RUN uv sync --frozen --no-dev
 FROM python:3.12-slim AS runtime
 COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
+COPY alembic.ini /app/alembic.ini
 COPY --from=frontend /frontend/dist /app/static
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/src"
 WORKDIR /app
-CMD uvicorn infrastructure.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD alembic upgrade head && uvicorn infrastructure.api.main:app --host 0.0.0.0 --port ${PORT:-8000}

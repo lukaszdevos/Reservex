@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from prometheus_client import make_asgi_app
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, RedirectResponse
 
 from infrastructure.api.middleware.idempotency import IdempotencyMiddleware
 from infrastructure.api.middleware.rate_limit import configure_limiter
@@ -102,6 +102,11 @@ def create_app() -> FastAPI:
     app.include_router(payments.router, prefix="/payments", tags=["payments"])
     app.include_router(demo.router, prefix="/api/demo", tags=["demo"])
     app.include_router(ws_router, prefix="/ws", tags=["websocket"])
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics_redirect() -> RedirectResponse:
+        """Prometheus ASGI app is mounted at /metrics/."""
+        return RedirectResponse("/metrics/")
 
     app.mount("/metrics", make_asgi_app())
 
