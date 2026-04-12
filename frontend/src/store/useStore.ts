@@ -11,6 +11,13 @@ import type {
 const MAX_LOG_ENTRIES = 60
 const MAX_THROUGHPUT_POINTS = 60
 
+const DEFAULT_SAGA_STEPS: SagaStep[] = [
+  { name: 'validate', status: 'pending' },
+  { name: 'reserve', status: 'pending' },
+  { name: 'charge', status: 'pending' },
+  { name: 'notify', status: 'pending' },
+]
+
 interface AppState {
   // WebSocket
   wsConnected: boolean
@@ -20,10 +27,12 @@ interface AppState {
   seats: Seat[]
   setSeats: (seats: Seat[]) => void
   updateSeat: (seatId: number, status: Seat['status']) => void
+  clearSeats: () => void
 
   // SAGA visualizer
   sagaSteps: SagaStep[]
   setSagaSteps: (steps: SagaStep[]) => void
+  resetSagaSteps: () => void
 
   // Timeout progress
   timeoutProgress: number
@@ -51,14 +60,10 @@ interface AppState {
   // Scenario running state
   runningScenario: string | null
   setRunningScenario: (name: string | null) => void
-}
 
-const defaultSagaSteps: SagaStep[] = [
-  { name: 'validate', status: 'pending' },
-  { name: 'reserve', status: 'pending' },
-  { name: 'charge', status: 'pending' },
-  { name: 'notify', status: 'pending' },
-]
+  // Reset all transient scenario state back to defaults
+  resetScenarioState: () => void
+}
 
 export const useStore = create<AppState>((set) => ({
   wsConnected: false,
@@ -72,9 +77,11 @@ export const useStore = create<AppState>((set) => ({
         s.id === seatId ? { ...s, status } : s,
       ),
     })),
+  clearSeats: () => set({ seats: [] }),
 
-  sagaSteps: defaultSagaSteps,
+  sagaSteps: DEFAULT_SAGA_STEPS,
   setSagaSteps: (steps) => set({ sagaSteps: steps }),
+  resetSagaSteps: () => set({ sagaSteps: DEFAULT_SAGA_STEPS }),
 
   timeoutProgress: 0,
   timeoutActive: false,
@@ -102,4 +109,14 @@ export const useStore = create<AppState>((set) => ({
 
   runningScenario: null,
   setRunningScenario: (name) => set({ runningScenario: name }),
+
+  resetScenarioState: () =>
+    set({
+      sagaSteps: DEFAULT_SAGA_STEPS,
+      timeoutProgress: 0,
+      timeoutActive: false,
+      semaphore: { active: 0, queued: 0, total: 10 },
+      activeLayer: null,
+      // seats keep their last state so user can see result; clear with next scenario
+    }),
 }))
