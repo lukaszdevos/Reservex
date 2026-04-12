@@ -53,7 +53,10 @@ async def _scenario_done(request: Request, delay_s: float = 1.5) -> None:
     await asyncio.sleep(delay_s)
     await _broadcast(request, {"type": "layer_idle"})
     await _broadcast(request, {"type": "timeout_done"})
-    await _broadcast(request, {"type": "semaphore_update", "active": 0, "queued": 0, "total": 10})
+    await _broadcast(
+        request,
+        {"type": "semaphore_update", "active": 0, "queued": 0, "total": 10},
+    )
     await _broadcast(request, {
         "type": "saga_update",
         "steps": [
@@ -142,7 +145,10 @@ async def scenario_race(request: Request) -> JSONResponse:
     await _broadcast(request, {"type": "layer_active", "layer": "asyncio"})
     await _broadcast(request, {
         "type": "log", "level": "info",
-        "message": f"⚡ Race: {concurrency} coroutines targeting seat D7 (id={ticket.id})",
+        "message": (
+            f"⚡ Race: {concurrency} coroutines targeting seat D7 "
+            f"(id={ticket.id})"
+        ),
     })
 
     successes = 0
@@ -178,11 +184,17 @@ async def scenario_race(request: Request) -> JSONResponse:
         _latency_samples.append(elapsed)
         RESERVATION_DURATION.observe(elapsed / 1000)
 
-    await asyncio.gather(*[attempt(i) for i in range(concurrency)], return_exceptions=True)
+    await asyncio.gather(
+        *[attempt(i) for i in range(concurrency)],
+        return_exceptions=True,
+    )
 
     await _broadcast(request, {
         "type": "log", "level": "info",
-        "message": f"■ Race done: {successes} success, {conflicts} TicketAlreadyTakenError",
+        "message": (
+            f"■ Race done: {successes} success, "
+            f"{conflicts} TicketAlreadyTakenError"
+        ),
     })
 
     # Schedule background reset (don't await - return response immediately)
@@ -289,7 +301,10 @@ async def scenario_timeout(request: Request) -> JSONResponse:
     RESERVATIONS_TOTAL.labels(status="timeout").inc()
     await _broadcast(request, {
         "type": "log", "level": "warn",
-        "message": "⏰ asyncio.timeout() fired - seat A10 auto-released back to available",
+        "message": (
+            "⏰ asyncio.timeout() fired - seat A10 auto-released back to "
+            "available"
+        ),
     })
 
     asyncio.create_task(_scenario_done(request, delay_s=1.5))
@@ -308,7 +323,10 @@ async def scenario_semaphore(request: Request) -> JSONResponse:
     await _broadcast(request, {"type": "layer_active", "layer": "asyncio"})
     await _broadcast(request, {
         "type": "log", "level": "info",
-        "message": f"🛡 Semaphore: dispatching {total_reqs} Stripe calls through Semaphore({total_slots})",
+        "message": (
+            f"🛡 Semaphore: dispatching {total_reqs} Stripe calls through "
+            f"Semaphore({total_slots})"
+        ),
     })
 
     async def stripe_call(i: int) -> None:
@@ -322,7 +340,10 @@ async def scenario_semaphore(request: Request) -> JSONResponse:
             await _sem_update(request, active, queued, total_slots)
             await _broadcast(request, {
                 "type": "log", "level": "info",
-                "message": f"  Stripe call #{i:02d} - slot {active}/{total_slots} ({queued} queued)",
+                "message": (
+                    f"  Stripe call #{i:02d} - slot {active}/{total_slots} "
+                    f"({queued} queued)"
+                ),
             })
             await asyncio.sleep(0.4)
             active -= 1
@@ -334,7 +355,10 @@ async def scenario_semaphore(request: Request) -> JSONResponse:
     await _sem_update(request, 0, 0, total_slots)
     await _broadcast(request, {
         "type": "log", "level": "success",
-        "message": f"■ Semaphore done: {total_reqs} Stripe calls - never exceeded {total_slots} concurrent",
+        "message": (
+            f"■ Semaphore done: {total_reqs} Stripe calls - never exceeded "
+            f"{total_slots} concurrent"
+        ),
     })
 
     asyncio.create_task(_scenario_done(request, delay_s=1.0))
@@ -355,7 +379,10 @@ async def scenario_broadcast(request: Request) -> JSONResponse:
     for _ in range(30):
         seat_id = random.randint(1, 48)
         status = random.choice(statuses)
-        await _broadcast(request, {"type": "seat_update", "seat_id": seat_id, "status": status})
+        await _broadcast(
+            request,
+            {"type": "seat_update", "seat_id": seat_id, "status": status},
+        )
         await asyncio.sleep(0.1)
 
     await _broadcast(request, {
@@ -391,7 +418,11 @@ async def scenario_outbox(request: Request) -> JSONResponse:
 
     # Phase 2: Background relay
     relay_steps = [
-        ("info", "  [relay] polling: SELECT … WHERE published=false FOR UPDATE SKIP LOCKED"),
+        (
+            "info",
+            "  [relay] polling: "
+            "SELECT … WHERE published=false FOR UPDATE SKIP LOCKED",
+        ),
         ("info", "  [relay] found 1 message, publishing to Redis Streams"),
         ("success", "  [relay] XADD events:ticket.confirmed - event delivered"),
         ("db", "  [relay] UPDATE SET published=true - marking complete"),
