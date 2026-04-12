@@ -8,5 +8,6 @@ FROM python:3.12-slim AS runtime
 COPY --from=builder /app/.venv /app/.venv
 COPY src/ /app/src/
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src"
 WORKDIR /app
-CMD uvicorn src.infrastructure.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn infrastructure.api.main:app --host 0.0.0.0 --port ${PORT:-8000}
