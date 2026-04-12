@@ -18,6 +18,7 @@ dependencies = [
     "slowapi>=0.1",
     "alembic>=1.13",
     "stripe>=14.4.1",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.41.0",
 ]
 
 [dependency-groups]
