@@ -13,6 +13,8 @@ interface Scenario {
     why: string
     code: string
   }
+  // Which components light up during this scenario
+  affects: string[]
 }
 
 const SCENARIOS: Scenario[] = [
@@ -20,23 +22,25 @@ const SCENARIOS: Scenario[] = [
     name: 'race',
     icon: '⚡',
     label: 'Race Condition',
-    tagline: '50 contenders; DB lock covered in tests',
+    tagline: 'SELECT FOR UPDATE - 1 ticket, 50 users',
+    affects: ['Seat Map', 'Concurrency Layers'],
     tooltip: {
-      mechanism: 'asyncio visualization + PostgreSQL integration test',
-      what: '50 coroutines contend for the same seat in the dashboard.',
-      why: 'The backend reservation path uses SELECT FOR UPDATE and optimistic version checks; integration tests assert exactly one winner against real PostgreSQL.',
-      code: 'repo.get_for_update(ticket_id)',
+      mechanism: 'asyncio + PostgreSQL FOR UPDATE',
+      what: '50 coroutines race to reserve the same seat simultaneously.',
+      why: 'Demonstrates pessimistic locking: the DB row is locked at read-time, so only one transaction can proceed. All others block until the winner commits, then receive TicketAlreadyTakenError.',
+      code: 'SELECT … WHERE id=? FOR UPDATE',
     },
   },
   {
     name: 'saga',
     icon: '↩',
     label: 'SAGA Rollback',
-    tagline: 'Orchestrator + compensating transactions',
+    tagline: 'SAGA orchestrator + compensating transactions',
+    affects: ['SAGA Steps', 'Concurrency Layers'],
     tooltip: {
-      mechanism: 'TicketPurchaseSaga — 4-step orchestrator',
-      what: 'Visualizes validate → reserve → charge → notify with failure at "charge".',
-      why: 'The backend SAGA executes local steps and compensates in reverse on failure; tests prove payment failure releases the seat.',
+      mechanism: 'TicketPurchaseSaga - 4-step orchestrator',
+      what: 'Runs validate → reserve → charge → notify. Fails at "charge" (card declined).',
+      why: 'SAGA avoids distributed transactions by executing local steps and compensating in reverse on failure. The seat is auto-released when payment fails, leaving system in a consistent state.',
       code: '_compensate(ctx, reversed(executed))',
     },
   },
@@ -44,23 +48,25 @@ const SCENARIOS: Scenario[] = [
     name: 'timeout',
     icon: '⏱',
     label: 'Timeout Expiry',
-    tagline: 'DB expiry worker — reserved seat cleanup',
+    tagline: 'asyncio.timeout() - cooperative cancellation',
+    affects: ['Timeout Bar', 'Seat Map', 'Concurrency Layers'],
     tooltip: {
-      mechanism: 'reservation_expiry_worker',
-      what: 'Shows a short reservation TTL and then releases the seat.',
-      why: 'The backend worker scans expired reservation rows and releases tickets through the aggregate so release events still go through the outbox.',
-      code: 'release_expired_reservations(session_factory)',
+      mechanism: 'asyncio.timeout(5) context manager',
+      what: 'Reserves a seat with a 5-second TTL. When time runs out, the seat is auto-released.',
+      why: 'asyncio.timeout() uses cooperative cancellation - no polling threads. The CancelledError propagates up, cleanup code runs in the except block, and the event loop stays fully free.',
+      code: 'async with asyncio.timeout(300): …',
     },
   },
   {
     name: 'semaphore',
     icon: '🛡',
     label: 'Semaphore Guard',
-    tagline: 'asyncio.Semaphore(10) — Stripe rate cap',
+    tagline: 'asyncio.Semaphore(10) - Stripe rate cap',
+    affects: ['Semaphore Gauge', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio.Semaphore with 10 permits',
       what: '20 concurrent Stripe calls dispatched; at most 10 run simultaneously.',
-      why: 'Stripe\'s API has rate limits. A Semaphore in the gateway layer enforces a hard cap without a thread pool or external queue. Callers await the semaphore — no busy-wait, no dropped requests.',
+      why: "Stripe's API has rate limits. A Semaphore in the gateway layer enforces a hard cap without a thread pool or external queue. Callers await the semaphore - no busy-wait, no dropped requests.",
       code: 'async with self._semaphore: await stripe.charge(…)',
     },
   },
@@ -68,11 +74,12 @@ const SCENARIOS: Scenario[] = [
     name: 'broadcast',
     icon: '📡',
     label: 'WS Broadcast',
-    tagline: 'asyncio.gather() — fan-out to all clients',
+    tagline: 'asyncio.gather() - fan-out to all clients',
+    affects: ['Seat Map', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio.gather(return_exceptions=True)',
-      what: '30 rapid seat updates fan out to every connected WebSocket client in parallel.',
-      why: 'gather() sends all frames concurrently in the same event loop tick. return_exceptions=True ensures one dead client never stalls the broadcast — dead sockets are pruned after each round.',
+      what: '30 rapid seat updates fan-out to every connected WebSocket client in parallel.',
+      why: 'gather() sends all frames concurrently in the same event loop tick. return_exceptions=True ensures one dead client never stalls the broadcast - dead sockets are pruned after each round.',
       code: 'await asyncio.gather(*[ws.send_json(p) for ws in conns], return_exceptions=True)',
     },
   },
@@ -80,12 +87,13 @@ const SCENARIOS: Scenario[] = [
     name: 'outbox',
     icon: '📬',
     label: 'Outbox Relay',
-    tagline: 'Transactional Outbox — dual-write eliminator',
+    tagline: 'Transactional Outbox - dual-write eliminator',
+    affects: ['Concurrency Layers', 'Event Log'],
     tooltip: {
       mechanism: 'Transactional Outbox + background relay worker',
-      what: 'Shows the DB write, outbox insert, relay publish, and published marker.',
-      why: 'The backend repository writes ticket events and outbox messages in the same transaction; the relay publishes pending messages to Redis Streams.',
-      code: 'TicketEventModel + OutboxMessageModel',
+      what: 'Ticket confirmation and outbox message committed in one DB transaction. A background asyncio task polls and publishes to Redis Streams.',
+      why: 'Solves the dual-write problem: without an outbox, a crash between DB write and event publish silently loses the event. Here both writes are atomic - the relay always has a record to publish.',
+      code: 'session.add(OutboxMessage(…))  # same tx as ticket update',
     },
   },
 ]
@@ -94,26 +102,22 @@ function Tooltip({ scenario }: { scenario: Scenario }) {
   return (
     <div className="animate-slide-down overflow-hidden">
       <div className="mt-2 ml-6 p-3 rounded-md bg-bg border border-border/80 text-[11px] space-y-2">
-        {/* Mechanism badge */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="px-1.5 py-0.5 rounded bg-accent/20 text-accent-light font-mono text-[10px] font-semibold tracking-wide">
             {scenario.tooltip.mechanism}
           </span>
+          <span className="text-[10px] text-text-dim">
+            affects: {scenario.affects.join(', ')}
+          </span>
         </div>
-
-        {/* What */}
         <div>
           <span className="text-text-dim font-semibold uppercase tracking-wider text-[9px]">WHAT HAPPENS</span>
           <p className="text-text mt-0.5 leading-relaxed">{scenario.tooltip.what}</p>
         </div>
-
-        {/* Why */}
         <div>
           <span className="text-text-dim font-semibold uppercase tracking-wider text-[9px]">WHY IT MATTERS</span>
           <p className="text-text mt-0.5 leading-relaxed">{scenario.tooltip.why}</p>
         </div>
-
-        {/* Code snippet */}
         <div className="font-mono bg-surface-alt rounded px-2 py-1.5 text-accent-light text-[10px] break-all leading-snug border border-border/50">
           {scenario.tooltip.code}
         </div>
@@ -125,18 +129,21 @@ function Tooltip({ scenario }: { scenario: Scenario }) {
 export function ScenarioPanel() {
   const runningScenario = useStore((s) => s.runningScenario)
   const setRunningScenario = useStore((s) => s.setRunningScenario)
+  const resetScenarioState = useStore((s) => s.resetScenarioState)
   const addLogEntry = useStore((s) => s.addLogEntry)
   const [expandedTooltip, setExpandedTooltip] = useState<ScenarioName | null>(null)
 
   const runScenario = useCallback(
     async (name: ScenarioName) => {
       if (runningScenario) return
+      // Reset all transient state before starting a new scenario
+      resetScenarioState()
       setRunningScenario(name)
       addLogEntry({
         id: crypto.randomUUID(),
         timestamp: new Date().toLocaleTimeString(),
         type: 'info',
-        message: `Starting scenario: ${name}`,
+        message: `▶ Starting scenario: ${name}`,
       })
       try {
         const res = await fetch(`/api/demo/scenarios/${name}`, { method: 'POST' })
@@ -145,20 +152,22 @@ export function ScenarioPanel() {
           id: crypto.randomUUID(),
           timestamp: new Date().toLocaleTimeString(),
           type: res.ok ? 'success' : 'error',
-          message: `Scenario ${name}: ${data.message ?? (res.ok ? 'completed' : 'failed')}`,
+          message: `■ Scenario ${name}: ${data.message ?? (res.ok ? 'completed' : 'failed')}`,
         })
       } catch (err) {
         addLogEntry({
           id: crypto.randomUUID(),
           timestamp: new Date().toLocaleTimeString(),
           type: 'error',
-          message: `Scenario ${name} failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+          message: `■ Scenario ${name} failed: ${err instanceof Error ? err.message : 'unknown error'}`,
         })
       } finally {
+        // Reset all transient state back to defaults after scenario completes
+        setTimeout(() => resetScenarioState(), 1500)
         setRunningScenario(null)
       }
     },
-    [runningScenario, setRunningScenario, addLogEntry],
+    [runningScenario, setRunningScenario, resetScenarioState, addLogEntry],
   )
 
   const toggleTooltip = (name: ScenarioName, e: React.MouseEvent) => {
@@ -179,7 +188,6 @@ export function ScenarioPanel() {
           return (
             <div key={s.name}>
               <div className="flex items-stretch gap-1.5">
-                {/* Main run button */}
                 <button
                   onClick={() => runScenario(s.name)}
                   disabled={runningScenario !== null}
@@ -195,11 +203,15 @@ export function ScenarioPanel() {
                   <div className="flex items-center gap-2">
                     <span>{s.icon}</span>
                     <span className="font-medium text-sm">{s.label}</span>
+                    {isRunning && (
+                      <span className="ml-auto text-[9px] font-mono bg-accent/20 px-1.5 py-0.5 rounded-full text-accent-light">
+                        RUNNING
+                      </span>
+                    )}
                   </div>
                   <p className="text-[10px] text-text-dim mt-0.5 ml-6 leading-snug">{s.tagline}</p>
                 </button>
 
-                {/* Info toggle button */}
                 <button
                   onClick={(e) => toggleTooltip(s.name, e)}
                   title="Show technical details"
@@ -215,7 +227,6 @@ export function ScenarioPanel() {
                 </button>
               </div>
 
-              {/* Expandable tooltip */}
               {isExpanded && <Tooltip scenario={s} />}
             </div>
           )
