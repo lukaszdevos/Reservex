@@ -1,4 +1,4 @@
-"""TicketPurchaseSaga — orchestrates the full ticket purchase flow.
+"""TicketPurchaseSaga - orchestrates the full ticket purchase flow.
 
 Steps: validate → reserve → charge → notify
 On failure: compensates completed steps in reverse order (best-effort).

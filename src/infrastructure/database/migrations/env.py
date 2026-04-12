@@ -1,4 +1,4 @@
-"""Alembic environment — async mode with DATABASE_URL override."""
+"""Alembic environment - async mode with DATABASE_URL override."""
 
 import asyncio
 import os

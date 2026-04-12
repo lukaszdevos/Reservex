@@ -1,4 +1,4 @@
-"""Ticketing bounded context — domain model.
+"""Ticketing bounded context - domain model.
 
 Layer: domain
 Aggregate root: Ticket
@@ -35,7 +35,7 @@ class TicketStatus(Enum):
 class Reservation:
     """Child entity of the Ticket aggregate.
 
-    Never instantiate directly — created by Ticket.reserve().
+    Never instantiate directly - created by Ticket.reserve().
     """
 
     ticket_id: int

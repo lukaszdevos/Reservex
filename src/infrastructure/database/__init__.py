@@ -1,4 +1,4 @@
-"""Database package — part of infrastructure layer (LAYER 4).
+"""Database package - part of infrastructure layer (LAYER 4).
 
 Contains SQLAlchemy ORM models, async session factory, and Alembic migrations.
 """

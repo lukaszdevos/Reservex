@@ -1,4 +1,4 @@
-"""Integration tests — race condition with pessimistic and optimistic locking (P5.3).
+"""Integration tests - race condition with pessimistic and optimistic locking (P5.3).
 
 50 concurrent coroutines try to reserve the same ticket.
 Exactly one must win; all others must fail.

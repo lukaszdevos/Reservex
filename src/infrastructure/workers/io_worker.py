@@ -19,7 +19,7 @@ _SMTP_PORT: int = 25
 
 
 def _send_smtp_blocking(to: str, subject: str, body: str) -> None:
-    """Send an email synchronously — runs inside a thread pool worker."""
+    """Send an email synchronously - runs inside a thread pool worker."""
     msg = EmailMessage()
     msg["From"] = "noreply@reservex.local"
     msg["To"] = to

@@ -1,4 +1,4 @@
-"""Mock payment gateway — for tests and local development.
+"""Mock payment gateway - for tests and local development.
 
 Layer: adapters
 Implements: PaymentGateway (domain.payment.gateway)

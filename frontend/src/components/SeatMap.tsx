@@ -25,7 +25,7 @@ function SeatCell({ id, seat_number, status }: { id: number; seat_number: string
         text-[10px] font-mono cursor-default transition-colors
         ${STATUS_COLORS[status]}
       `}
-      title={`Seat ${seat_number} (#${id}) — ${status}`}
+      title={`Seat ${seat_number} (#${id}) - ${status}`}
     >
       <span className="font-semibold">{seat_number}</span>
     </animated.div>

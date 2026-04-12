@@ -1,4 +1,4 @@
-"""Integration tests — transactional outbox relay (P5.5).
+"""Integration tests - transactional outbox relay (P5.5).
 
 Inserts an unpublished outbox message, starts the relay worker as a task,
 then asserts the message was published to Redis Streams and marked published.

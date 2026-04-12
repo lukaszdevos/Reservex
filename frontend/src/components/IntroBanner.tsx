@@ -20,7 +20,7 @@ export function IntroBanner() {
             Portfolio Demo
           </span>
           <span className="text-xs font-semibold text-text truncate">
-            ReserveX — Distributed Reservation Platform
+            ReserveX - Distributed Reservation Platform
           </span>
           <span className="text-[10px] text-text-dim hidden lg:block truncate">
             Python 3.12 · FastAPI · React · asyncio · PostgreSQL · Redis · Clean Architecture · SAGA · Outbox
@@ -49,7 +49,7 @@ export function IntroBanner() {
           <h1 className="text-base font-bold text-text leading-tight">
             ReserveX{' '}
             <span className="text-accent-light font-normal text-sm">
-              — Distributed Reservation &amp; Payment Platform
+              - Distributed Reservation &amp; Payment Platform
             </span>
           </h1>
           <p className="mt-1 text-xs text-text-dim leading-relaxed max-w-2xl">

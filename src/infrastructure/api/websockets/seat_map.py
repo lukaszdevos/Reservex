@@ -23,7 +23,7 @@ ws_router = APIRouter()
 class SeatMapBroadcaster:
     """Tracks active WebSocket connections per event_id and fans out updates.
 
-    Singleton — stored in app.state.broadcaster during lifespan.
+    Singleton - stored in app.state.broadcaster during lifespan.
     """
 
     def __init__(self) -> None:

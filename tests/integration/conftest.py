@@ -2,7 +2,7 @@
 
 Starts real Postgres and Redis containers once per session via testcontainers.
 Each test gets a fresh AsyncSession wrapped in a transaction that is rolled
-back after the test — no data bleeds between tests.
+back after the test - no data bleeds between tests.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from domain.ticketing.model import Ticket, TicketStatus
 from infrastructure.database.models import Base, TicketModel
 
 # ---------------------------------------------------------------------------
-# Containers — started once per session
+# Containers - started once per session
 # ---------------------------------------------------------------------------
 
 
@@ -56,7 +56,7 @@ def redis_url(redis_container: RedisContainer) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Schema setup — run once per session via asyncio.run() in a sync fixture
+# Schema setup - run once per session via asyncio.run() in a sync fixture
 # ---------------------------------------------------------------------------
 
 
@@ -83,7 +83,7 @@ def _setup_db(pg_url: str) -> Generator[None, None, None]:
 
 
 # ---------------------------------------------------------------------------
-# Per-test session — wrapped in a rolled-back transaction
+# Per-test session - wrapped in a rolled-back transaction
 # ---------------------------------------------------------------------------
 
 
@@ -117,7 +117,7 @@ async def session_factory(
 
 
 # ---------------------------------------------------------------------------
-# Redis client — flushed after each test
+# Redis client - flushed after each test
 # ---------------------------------------------------------------------------
 
 
@@ -130,7 +130,7 @@ async def redis_client(redis_url: str) -> AsyncGenerator[aioredis.Redis, None]: 
 
 
 # ---------------------------------------------------------------------------
-# ticket_factory — inserts Ticket rows, respects the rollback session
+# ticket_factory - inserts Ticket rows, respects the rollback session
 # ---------------------------------------------------------------------------
 
 

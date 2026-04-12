@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for all bounded contexts.
 
 Layer: infrastructure
-Persistence representations only — never imported by domain or use_cases.
+Persistence representations only - never imported by domain or use_cases.
 """
 
 from datetime import datetime

@@ -1,4 +1,4 @@
-"""ReleaseTicketUseCase — releases a reserved ticket back to AVAILABLE.
+"""ReleaseTicketUseCase - releases a reserved ticket back to AVAILABLE.
 
 Layer: use_cases
 Imports: domain + stdlib only

@@ -1,4 +1,4 @@
-"""ReserveTicketUseCase — reserves a ticket for a user.
+"""ReserveTicketUseCase - reserves a ticket for a user.
 
 Layer: use_cases
 Imports: domain + stdlib only

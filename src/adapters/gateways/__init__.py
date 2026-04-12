@@ -1,4 +1,4 @@
-"""Gateway implementations — part of adapters layer (LAYER 3).
+"""Gateway implementations - part of adapters layer (LAYER 3).
 
 Concrete implementations of domain Gateway Protocols: Stripe, Redis, SMTP.
 """

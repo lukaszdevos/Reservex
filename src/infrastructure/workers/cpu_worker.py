@@ -12,7 +12,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 
 def _render_pdf_sync(ticket_dict: dict[str, object]) -> bytes:
-    """Generate a ticket PDF — runs synchronously inside a subprocess."""
+    """Generate a ticket PDF - runs synchronously inside a subprocess."""
     from io import BytesIO
 
     from reportlab.lib.pagesizes import A4
@@ -21,7 +21,7 @@ def _render_pdf_sync(ticket_dict: dict[str, object]) -> bytes:
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     c.setFont("Helvetica-Bold", 24)
-    c.drawString(100, 750, "ReserveX — Ticket Confirmation")
+    c.drawString(100, 750, "ReserveX - Ticket Confirmation")
     c.setFont("Helvetica", 14)
     y = 700
     for key, value in ticket_dict.items():

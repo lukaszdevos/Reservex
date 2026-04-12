@@ -1,4 +1,4 @@
-"""Base domain event — shared across all bounded contexts."""
+"""Base domain event - shared across all bounded contexts."""
 
 from __future__ import annotations
 

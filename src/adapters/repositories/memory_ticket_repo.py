@@ -1,4 +1,4 @@
-"""In-memory ticket repository — for unit tests and local development.
+"""In-memory ticket repository - for unit tests and local development.
 
 Layer: adapters
 Implements: TicketRepository (domain.ticketing.repository)

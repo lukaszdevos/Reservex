@@ -1,4 +1,4 @@
-"""Idempotency middleware — returns cached responses for repeated requests.
+"""Idempotency middleware - returns cached responses for repeated requests.
 
 Layer: infrastructure/api/middleware
 Checks the ``Idempotency-Key`` request header. Cache hits return the stored

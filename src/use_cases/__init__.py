@@ -1,4 +1,4 @@
-"""Use cases layer — LAYER 2.
+"""Use cases layer - LAYER 2.
 
 Imports domain/ and stdlib only.
 Contains business logic, SAGA orchestration, and request/response objects.

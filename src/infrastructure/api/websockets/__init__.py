@@ -1,4 +1,4 @@
-"""WebSocket handlers — part of infrastructure layer (LAYER 4).
+"""WebSocket handlers - part of infrastructure layer (LAYER 4).
 
 Contains the seat map broadcaster and WebSocket endpoints.
 """

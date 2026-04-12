@@ -119,7 +119,7 @@ def create_app() -> FastAPI:
 
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str) -> FileResponse:
-            """Serve frontend SPA — fallback to index.html."""
+            """Serve frontend SPA - fallback to index.html."""
             file = STATIC_DIR / full_path
             if file.is_file():
                 return FileResponse(file)

@@ -2,7 +2,7 @@
 
 Uses Hypothesis to generate random failure patterns and asserts that
 the ticket always returns to AVAILABLE when any SAGA step fails.
-No database — uses MemoryTicketRepository.
+No database - uses MemoryTicketRepository.
 """
 
 from __future__ import annotations

@@ -29,7 +29,7 @@ class StubNotificationGateway:
 
 
 class StubUserBlacklistGateway:
-    """Never blacklists any user — always returns False.
+    """Never blacklists any user - always returns False.
 
     Implements: UserBlacklistGateway
     """

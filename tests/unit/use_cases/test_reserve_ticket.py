@@ -1,6 +1,6 @@
 """Unit tests for ReserveTicketUseCase.
 
-Uses an inline fake repo — no database, no Redis.
+Uses an inline fake repo - no database, no Redis.
 """
 
 from __future__ import annotations

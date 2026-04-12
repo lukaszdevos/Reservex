@@ -1,7 +1,7 @@
-"""Integration tests — SAGA rollback against real Postgres (P5.4).
+"""Integration tests - SAGA rollback against real Postgres (P5.4).
 
 Happy path: ticket ends RESERVED after SAGA completes.
-Failure path: card decline triggers compensation — ticket returns to AVAILABLE.
+Failure path: card decline triggers compensation - ticket returns to AVAILABLE.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def _make_ctx(ticket_id: int) -> SagaContext:
 async def test_saga_happy_path_ticket_reserved(
     db_session: AsyncSession, ticket_factory: Any
 ) -> None:
-    """All 4 steps succeed — ticket is RESERVED in DB."""
+    """All 4 steps succeed - ticket is RESERVED in DB."""
     await ticket_factory(id=10, event_id=1, seat_number="S1")
 
     saga = _make_saga(db_session)

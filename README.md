@@ -9,7 +9,7 @@ through a fully working live demo.
 
 **[https://reservex-production-b7e8.up.railway.app/](https://reservex-production-b7e8.up.railway.app/)**
 
-Deployed on Railway. PostgreSQL and Redis are live — every button triggers real
+Deployed on Railway. PostgreSQL and Redis are live - every button triggers real
 backend operations (locking, SAGA steps, compensation). No login required.
 
 ---
@@ -33,7 +33,7 @@ backend operations (locking, SAGA steps, compensation). No login required.
 ## Dashboard Walkthrough
 
 Open the live URL. The page loads a 50-seat event and connects via WebSocket.
-Everything updates in real time — no manual refresh needed.
+Everything updates in real time - no manual refresh needed.
 
 ### Seat Map
 
@@ -47,7 +47,7 @@ The grid at the top shows all 50 seats colour-coded by state:
 | Red | `RELEASED` | Expired or cancelled, back to available |
 
 Seats transition automatically as you trigger scenarios. An expiry worker runs
-every second on the backend — yellow seats turn red then green on their own if a
+every second on the backend - yellow seats turn red then green on their own if a
 purchase is not completed in time.
 
 ### Scenario Panel
@@ -83,7 +83,7 @@ sequence of lock acquisitions, SAGA transitions, and compensation calls.
 ### Metrics Dashboard
 
 Live throughput graph (requests/sec) and a latency histogram updated as you
-trigger scenarios. Data comes from the same WebSocket stream — no polling.
+trigger scenarios. Data comes from the same WebSocket stream - no polling.
 
 ### Concurrency Layers & Semaphore Gauge
 
@@ -102,29 +102,29 @@ Resets each time a new reservation is made.
 
 ### Clean Architecture Layers
 
-Dependencies flow strictly inward — domain has no external imports; infrastructure wires everything.
+Dependencies flow strictly inward - domain has no external imports; infrastructure wires everything.
 
 ```mermaid
 graph TD
-    subgraph INFRA["infrastructure — FastAPI, workers, DB sessions, observability"]
+    subgraph INFRA["infrastructure - FastAPI, workers, DB sessions, observability"]
         App["FastAPI app\nroutes · middleware · WebSocket"]
         Workers["OutboxRelayWorker\nReservationExpiryWorker"]
     end
 
-    subgraph ADAPT["adapters — concrete implementations"]
+    subgraph ADAPT["adapters - concrete implementations"]
         Repo["PostgresTicketRepository\noptimistic + pessimistic locking"]
         GW["PaymentGateway\nStripe · Mock · Stub"]
         Lock["RedisLockGateway"]
         Outbox["OutboxSerializer"]
     end
 
-    subgraph UC["use_cases — application logic"]
+    subgraph UC["use_cases - application logic"]
         Reserve["ReserveTicketUseCase"]
         Release["ReleaseTicketUseCase"]
         SAGA["TicketPurchaseSaga\nstep orchestration + compensation"]
     end
 
-    subgraph DOMAIN["domain — pure Python, zero I/O"]
+    subgraph DOMAIN["domain - pure Python, zero I/O"]
         Agg["Ticket aggregate\nReservation entity\nstate machine"]
         Events["Domain events\nTicketReserved · Confirmed · Released"]
         Proto["Repository &amp; Gateway\nprotocols (interfaces)"]

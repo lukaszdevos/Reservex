@@ -1,7 +1,7 @@
 """Application settings loaded from environment variables / .env file.
 
 Layer: infrastructure
-All configuration values read via pydantic-settings — never hardcoded.
+All configuration values read via pydantic-settings - never hardcoded.
 """
 
 from __future__ import annotations

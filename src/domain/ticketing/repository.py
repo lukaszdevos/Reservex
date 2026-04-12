@@ -2,7 +2,7 @@
 
 Layer: domain
 Cosmic Python rule: repositories only return aggregates, never child entities.
-Only one repository per aggregate root — Reservation is accessed through Ticket.
+Only one repository per aggregate root - Reservation is accessed through Ticket.
 
 Implemented by: PostgresTicketRepository, MemoryTicketRepository.
 """

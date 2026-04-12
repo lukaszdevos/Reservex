@@ -1,4 +1,4 @@
-"""Integration tests — reservation happy path (P5.2).
+"""Integration tests - reservation happy path (P5.2).
 
 Tests run against a real Postgres container. Each test is wrapped in a
 transaction that rolls back automatically after the test.
@@ -24,7 +24,7 @@ from use_cases.reserve_ticket import ReserveTicketUseCase
 async def test_reserve_ticket_happy_path(
     db_session: AsyncSession, ticket_factory: Any
 ) -> None:
-    """Reserve an available ticket — status becomes RESERVED in DB."""
+    """Reserve an available ticket - status becomes RESERVED in DB."""
     await ticket_factory(id=1, event_id=1, seat_number="A1")
 
     repo = PostgresTicketRepository(db_session)
