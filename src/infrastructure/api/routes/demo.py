@@ -2,8 +2,7 @@
 
 Layer: infrastructure/api/routes
 Each scenario triggers real backend mechanisms and streams events
-via WebSocket. Every scenario ends with a 'scenario_done' broadcast
-so the frontend can reset all transient component state smoothly.
+via WebSocket.
 """
 
 from __future__ import annotations
@@ -46,26 +45,6 @@ async def _broadcast(
             await ws.send_json(event)
         except Exception:
             broadcaster._connections[1].discard(ws)
-
-
-async def _scenario_done(request: Request, delay_s: float = 1.5) -> None:
-    """After a short pause, broadcast reset signals to all components."""
-    await asyncio.sleep(delay_s)
-    await _broadcast(request, {"type": "layer_idle"})
-    await _broadcast(request, {"type": "timeout_done"})
-    await _broadcast(
-        request,
-        {"type": "semaphore_update", "active": 0, "queued": 0, "total": 10},
-    )
-    await _broadcast(request, {
-        "type": "saga_update",
-        "steps": [
-            {"name": "validate", "status": "pending"},
-            {"name": "reserve",  "status": "pending"},
-            {"name": "charge",   "status": "pending"},
-            {"name": "notify",   "status": "pending"},
-        ],
-    })
 
 
 def _saga_step_state(
@@ -140,7 +119,7 @@ async def scenario_race(request: Request) -> JSONResponse:
     concurrency = 50
     ticket = Ticket(id=42, event_id=1, seat_number="D7")
 
-    # Init seat map so users can see the target seat
+    # Init seat map — all available so user can see target seat
     await _broadcast(request, {"type": "seats_init", "seats": _init_seats()})
     await _broadcast(request, {"type": "layer_active", "layer": "asyncio"})
     await _broadcast(request, {
@@ -170,7 +149,7 @@ async def scenario_race(request: Request) -> JSONResponse:
                 })
                 await _broadcast(request, {
                     "type": "log", "level": "success",
-                    "message": f"✓ User {user_id} won the race - seat reserved",
+                    "message": f"✓ User {user_id} won the race — seat D7 reserved",
                 })
             else:
                 conflicts += 1
@@ -196,9 +175,7 @@ async def scenario_race(request: Request) -> JSONResponse:
             f"{conflicts} TicketAlreadyTakenError"
         ),
     })
-
-    # Schedule background reset (don't await - return response immediately)
-    asyncio.create_task(_scenario_done(request, delay_s=2.0))
+    await _broadcast(request, {"type": "layer_idle"})
 
     return JSONResponse({
         "message": f"{successes} success, {conflicts} conflicts",
@@ -235,7 +212,7 @@ async def scenario_saga(request: Request) -> JSONResponse:
             await _broadcast(request, {"type": "saga_update", "steps": state})
             await _broadcast(request, {
                 "type": "log", "level": "error",
-                "message": f"  ✗ {step}: FAILED - card declined (PaymentDeclinedError)",
+                "message": f"  ✗ {step}: FAILED — card declined (PaymentDeclinedError)",
             })
 
             # Compensate in reverse
@@ -244,15 +221,14 @@ async def scenario_saga(request: Request) -> JSONResponse:
                 await asyncio.sleep(0.4)
                 await _broadcast(request, {
                     "type": "log", "level": "warn",
-                    "message": f"  ↩ compensating: {comp} - rolling back",
+                    "message": f"  ↩ compensating: {comp} — rolling back",
                 })
 
             await _broadcast(request, {
                 "type": "log", "level": "info",
-                "message": "■ SAGA rollback complete - system in consistent state",
+                "message": "■ SAGA rollback complete — system in consistent state",
             })
-
-            asyncio.create_task(_scenario_done(request, delay_s=1.5))
+            await _broadcast(request, {"type": "layer_idle"})
             return JSONResponse({"message": f"SAGA failed at {fail_at}, compensated"})
 
         # Mark step as success
@@ -265,9 +241,9 @@ async def scenario_saga(request: Request) -> JSONResponse:
 
     await _broadcast(request, {
         "type": "log", "level": "success",
-        "message": "■ SAGA complete - ticket confirmed",
+        "message": "■ SAGA complete — ticket confirmed",
     })
-    asyncio.create_task(_scenario_done(request, delay_s=1.5))
+    await _broadcast(request, {"type": "layer_idle"})
     return JSONResponse({"message": "SAGA completed"})
 
 
@@ -275,17 +251,18 @@ async def scenario_saga(request: Request) -> JSONResponse:
 async def scenario_timeout(request: Request) -> JSONResponse:
     """Timeout demo: asyncio.timeout() counts down, then auto-releases seat."""
     duration_ms = 5000
-    num_steps = 20
+    num_steps = 25
 
     await _broadcast(request, {"type": "layer_active", "layer": "asyncio"})
 
-    # Reserve seat A10 (id=10) at start
+    # Reserve seat A10 (id=10) at start — make sure seats are showing
+    await _broadcast(request, {"type": "seats_init", "seats": _init_seats()})
     await _broadcast(request, {
         "type": "seat_update", "seat_id": 10, "status": "reserved",
     })
     await _broadcast(request, {
         "type": "log", "level": "info",
-        "message": "⏱ Timeout: seat A10 reserved - 5s TTL started (asyncio.timeout)",
+        "message": "⏱ Timeout: seat A10 reserved — 5s TTL started (asyncio.timeout)",
     })
 
     for i in range(1, num_steps + 1):
@@ -293,7 +270,7 @@ async def scenario_timeout(request: Request) -> JSONResponse:
         await _broadcast(request, {"type": "timeout_progress", "percent": pct})
         await asyncio.sleep(duration_ms / num_steps / 1000)
 
-    # Timeout fires - release
+    # Timeout fires — release
     await _broadcast(request, {"type": "timeout_done"})
     await _broadcast(request, {
         "type": "seat_update", "seat_id": 10, "status": "available",
@@ -302,12 +279,12 @@ async def scenario_timeout(request: Request) -> JSONResponse:
     await _broadcast(request, {
         "type": "log", "level": "warn",
         "message": (
-            "⏰ asyncio.timeout() fired - seat A10 auto-released back to "
+            "⏰ asyncio.timeout() fired — seat A10 auto-released back to "
             "available"
         ),
     })
+    await _broadcast(request, {"type": "layer_idle"})
 
-    asyncio.create_task(_scenario_done(request, delay_s=1.5))
     return JSONResponse({"message": "Timeout expired, seat released"})
 
 
@@ -341,7 +318,7 @@ async def scenario_semaphore(request: Request) -> JSONResponse:
             await _broadcast(request, {
                 "type": "log", "level": "info",
                 "message": (
-                    f"  Stripe call #{i:02d} - slot {active}/{total_slots} "
+                    f"  Stripe #{i:02d} — slot {active}/{total_slots} "
                     f"({queued} queued)"
                 ),
             })
@@ -356,12 +333,12 @@ async def scenario_semaphore(request: Request) -> JSONResponse:
     await _broadcast(request, {
         "type": "log", "level": "success",
         "message": (
-            f"■ Semaphore done: {total_reqs} Stripe calls - never exceeded "
+            f"■ Semaphore done: {total_reqs} Stripe calls — never exceeded "
             f"{total_slots} concurrent"
         ),
     })
+    await _broadcast(request, {"type": "layer_idle"})
 
-    asyncio.create_task(_scenario_done(request, delay_s=1.0))
     return JSONResponse({"message": f"All {total_reqs} calls processed"})
 
 
@@ -379,18 +356,17 @@ async def scenario_broadcast(request: Request) -> JSONResponse:
     for _ in range(30):
         seat_id = random.randint(1, 48)
         status = random.choice(statuses)
-        await _broadcast(
-            request,
-            {"type": "seat_update", "seat_id": seat_id, "status": status},
-        )
+        await _broadcast(request, {
+            "type": "seat_update", "seat_id": seat_id, "status": status,
+        })
         await asyncio.sleep(0.1)
 
     await _broadcast(request, {
         "type": "log", "level": "success",
-        "message": "■ Broadcast: 30 updates sent - all WS clients received in <10ms",
+        "message": "■ Broadcast: 30 updates sent — all WS clients received in <10ms",
     })
+    await _broadcast(request, {"type": "layer_idle"})
 
-    asyncio.create_task(_scenario_done(request, delay_s=1.5))
     return JSONResponse({"message": "30 seat updates broadcast"})
 
 
@@ -408,7 +384,7 @@ async def scenario_outbox(request: Request) -> JSONResponse:
         ("db", "  [tx] BEGIN transaction"),
         ("db", "  [tx] INSERT ticket_events (status=confirmed)"),
         ("db", "  [tx] INSERT outbox_messages (published=false)  ← atomic!"),
-        ("db", "  [tx] COMMIT - both writes or neither (atomicity guaranteed)"),
+        ("db", "  [tx] COMMIT — both writes or neither"),
     ]
     for level, msg in tx_steps:
         await _broadcast(request, {"type": "log", "level": level, "message": msg})
@@ -418,19 +394,15 @@ async def scenario_outbox(request: Request) -> JSONResponse:
 
     # Phase 2: Background relay
     relay_steps = [
-        (
-            "info",
-            "  [relay] polling: "
-            "SELECT … WHERE published=false FOR UPDATE SKIP LOCKED",
-        ),
-        ("info", "  [relay] found 1 message, publishing to Redis Streams"),
-        ("success", "  [relay] XADD events:ticket.confirmed - event delivered"),
-        ("db", "  [relay] UPDATE SET published=true - marking complete"),
+        ("info", "  [relay] SELECT … WHERE published=false FOR UPDATE SKIP LOCKED"),
+        ("info", "  [relay] found 1 message — publishing to Redis Streams"),
+        ("success", "  [relay] XADD events:ticket.confirmed — event delivered"),
+        ("db", "  [relay] UPDATE SET published=true"),
         ("success", "■ Outbox complete: zero events lost, exactly-once delivery"),
     ]
     for level, msg in relay_steps:
         await _broadcast(request, {"type": "log", "level": level, "message": msg})
         await asyncio.sleep(0.35)
 
-    asyncio.create_task(_scenario_done(request, delay_s=1.0))
+    await _broadcast(request, {"type": "layer_idle"})
     return JSONResponse({"message": "Outbox relay demo complete"})

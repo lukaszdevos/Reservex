@@ -3,10 +3,17 @@ import { useStore } from '../store/useStore'
 export function SemaphoreGauge() {
   const { active, queued, total } = useStore((s) => s.semaphore)
   const runningScenario = useStore((s) => s.runningScenario)
-  const isSemaphoreScenario = runningScenario === 'semaphore'
+  const lastScenario = useStore((s) => s.lastScenario)
+  const isSemaphoreScenario =
+    runningScenario === 'semaphore' || lastScenario === 'semaphore'
 
   const fillPct = total > 0 ? Math.round((active / total) * 100) : 0
   const isAtCapacity = active >= total && total > 0
+  const isComplete =
+    lastScenario === 'semaphore'
+    && runningScenario !== 'semaphore'
+    && active === 0
+    && queued === 0
 
   return (
     <div className={`bg-surface rounded-lg border p-4 transition-all duration-300 ${
@@ -20,6 +27,11 @@ export function SemaphoreGauge() {
           {isAtCapacity && isSemaphoreScenario && (
             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-error/20 text-error border border-error/30 animate-pulse-glow">
               AT CAPACITY
+            </span>
+          )}
+          {isComplete && (
+            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-success/15 text-success border border-success/30">
+              COMPLETE
             </span>
           )}
           <span className="text-xs font-mono text-text-dim">

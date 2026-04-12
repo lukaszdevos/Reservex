@@ -1,8 +1,15 @@
 import { useEffect, useRef } from 'react'
-import type { WsMessage } from '../types'
+import type { WsEvent } from '../types'
 import { useStore } from '../store/useStore'
 
-export function useWsDispatch(messages: WsMessage[]) {
+export function getUnprocessedWsEvents(
+  messages: WsEvent[],
+  lastProcessedId: number,
+) {
+  return messages.filter((event) => event.id > lastProcessedId)
+}
+
+export function useWsDispatch(messages: WsEvent[]) {
   const setSeats = useStore((s) => s.setSeats)
   const updateSeat = useStore((s) => s.updateSeat)
   const setSagaSteps = useStore((s) => s.setSagaSteps)
@@ -11,18 +18,20 @@ export function useWsDispatch(messages: WsMessage[]) {
   const setSemaphore = useStore((s) => s.setSemaphore)
   const addLogEntry = useStore((s) => s.addLogEntry)
   const setActiveLayer = useStore((s) => s.setActiveLayer)
-  const processedCountRef = useRef(0)
+  const lastProcessedIdRef = useRef(-1)
 
   useEffect(() => {
-    if (messages.length === 0) {
-      processedCountRef.current = 0
-      return
-    }
+    const unprocessed = getUnprocessedWsEvents(
+      messages,
+      lastProcessedIdRef.current,
+    )
 
-    const unprocessed = messages.slice(processedCountRef.current)
-    processedCountRef.current = messages.length
-
-    for (const msg of unprocessed) {
+    for (const event of unprocessed) {
+      lastProcessedIdRef.current = Math.max(
+        lastProcessedIdRef.current,
+        event.id,
+      )
+      const msg = event.message
       switch (msg.type) {
         case 'seats_init':
           setSeats(msg.seats)
@@ -43,7 +52,7 @@ export function useWsDispatch(messages: WsMessage[]) {
 
         case 'timeout_done':
           setTimeoutActive(false)
-          setTimeoutProgress(0)
+          setTimeoutProgress(100)
           break
 
         case 'semaphore_update':

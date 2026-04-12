@@ -25,7 +25,10 @@ const STATUS_LABEL_COLORS: Record<SagaStepStatus, string> = {
 export function SagaVisualizer() {
   const steps = useStore((s) => s.sagaSteps)
   const runningScenario = useStore((s) => s.runningScenario)
-  const isSagaActive = runningScenario === 'saga'
+  const lastScenario = useStore((s) => s.lastScenario)
+  const hasSagaProgress = steps.some((step) => step.status !== 'pending')
+  const isSagaActive =
+    runningScenario === 'saga' || (lastScenario === 'saga' && hasSagaProgress)
 
   return (
     <div className={`bg-surface rounded-lg border p-4 transition-all duration-300 ${
@@ -35,7 +38,7 @@ export function SagaVisualizer() {
         <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wider">
           SAGA Steps
         </h2>
-        {isSagaActive && (
+        {runningScenario === 'saga' && (
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-accent/20 text-accent-light animate-pulse-glow">
             orchestrating
           </span>

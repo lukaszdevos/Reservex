@@ -56,3 +56,8 @@ export type WsMessage =
   | { type: 'layer_active'; layer: ConcurrencyLayer }
   | { type: 'layer_idle' }
   | { type: 'log'; level: EventLogType; message: string }
+
+export interface WsEvent {
+  id: number
+  message: WsMessage
+}

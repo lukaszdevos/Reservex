@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { WsMessage } from '../types'
+import type { WsEvent } from '../types'
 import { parseWsMessage } from './wsMessages'
 
 const MAX_RETRIES = 10
@@ -8,9 +8,10 @@ const MAX_DELAY_MS = 30_000
 
 export function useWebSocket(url: string) {
   const [connected, setConnected] = useState(false)
-  const [messages, setMessages] = useState<WsMessage[]>([])
+  const [messages, setMessages] = useState<WsEvent[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const retriesRef = useRef(0)
+  const nextMessageIdRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const connectRef = useRef<() => void>(() => undefined)
 
@@ -32,7 +33,12 @@ export function useWebSocket(url: string) {
       try {
         const data = parseWsMessage(JSON.parse(event.data) as unknown)
         if (data !== null) {
-          setMessages((prev) => [...prev.slice(-99), data])
+          const nextEvent = {
+            id: nextMessageIdRef.current,
+            message: data,
+          }
+          nextMessageIdRef.current += 1
+          setMessages((prev) => [...prev.slice(-99), nextEvent])
         }
       } catch {
         // ignore non-JSON messages

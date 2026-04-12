@@ -4,9 +4,11 @@ export function TimeoutBar() {
   const progress = useStore((s) => s.timeoutProgress)
   const active = useStore((s) => s.timeoutActive)
   const runningScenario = useStore((s) => s.runningScenario)
-  const isTimeoutScenario = runningScenario === 'timeout'
+  const lastScenario = useStore((s) => s.lastScenario)
+  const isTimeoutScenario = runningScenario === 'timeout' || lastScenario === 'timeout'
 
   const pct = Math.min(100, Math.max(0, progress))
+  const hasProgress = pct > 0
   const barColor =
     pct >= 80 ? 'bg-error shadow-[0_0_8px_rgba(239,68,68,0.5)]'
     : pct >= 50 ? 'bg-warning shadow-[0_0_8px_rgba(245,158,11,0.4)]'
@@ -28,8 +30,8 @@ export function TimeoutBar() {
               {ttlRemaining}s left
             </span>
           )}
-          <span className={`text-xs font-mono ${active ? (pct >= 80 ? 'text-error' : 'text-accent-light') : 'text-text-dim'}`}>
-            {active ? `${pct.toFixed(0)}%` : 'idle'}
+          <span className={`text-xs font-mono ${hasProgress ? (pct >= 80 ? 'text-error' : 'text-accent-light') : 'text-text-dim'}`}>
+            {hasProgress ? `${pct.toFixed(0)}%` : 'idle'}
           </span>
         </div>
       </div>
@@ -37,17 +39,17 @@ export function TimeoutBar() {
       {/* Progress bar */}
       <div className="w-full h-3 bg-surface-alt rounded-full overflow-hidden border border-border/50">
         <div
-          className={`h-full rounded-full transition-all duration-300 ${active ? barColor : 'bg-surface-alt'}`}
-          style={{ width: `${active ? pct : 0}%` }}
+          className={`h-full rounded-full transition-all duration-300 ${hasProgress ? barColor : 'bg-surface-alt'}`}
+          style={{ width: `${hasProgress ? pct : 0}%` }}
         />
       </div>
 
       {/* Context label */}
       <div className="mt-1.5 text-[10px] font-mono text-text-dim">
-        {active
-          ? pct >= 100
+        {hasProgress
+          ? pct >= 100 && !active
             ? '⏰ TTL expired - asyncio.timeout() fired, seat released'
-            : `⏱ asyncio.timeout(5) - reservation TTL counting down`
+            : '⏱ asyncio.timeout(5) - reservation TTL counting down'
           : 'asyncio.timeout() context manager - cooperative cancellation'
         }
       </div>

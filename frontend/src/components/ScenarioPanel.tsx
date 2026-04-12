@@ -13,7 +13,6 @@ interface Scenario {
     why: string
     code: string
   }
-  // Which components light up during this scenario
   affects: string[]
 }
 
@@ -22,7 +21,7 @@ const SCENARIOS: Scenario[] = [
     name: 'race',
     icon: '⚡',
     label: 'Race Condition',
-    tagline: 'SELECT FOR UPDATE - 1 ticket, 50 users',
+    tagline: 'SELECT FOR UPDATE — 1 ticket, 50 users',
     affects: ['Seat Map', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio + PostgreSQL FOR UPDATE',
@@ -38,7 +37,7 @@ const SCENARIOS: Scenario[] = [
     tagline: 'SAGA orchestrator + compensating transactions',
     affects: ['SAGA Steps', 'Concurrency Layers'],
     tooltip: {
-      mechanism: 'TicketPurchaseSaga - 4-step orchestrator',
+      mechanism: 'TicketPurchaseSaga — 4-step orchestrator',
       what: 'Runs validate → reserve → charge → notify. Fails at "charge" (card declined).',
       why: 'SAGA avoids distributed transactions by executing local steps and compensating in reverse on failure. The seat is auto-released when payment fails, leaving system in a consistent state.',
       code: '_compensate(ctx, reversed(executed))',
@@ -48,12 +47,12 @@ const SCENARIOS: Scenario[] = [
     name: 'timeout',
     icon: '⏱',
     label: 'Timeout Expiry',
-    tagline: 'asyncio.timeout() - cooperative cancellation',
+    tagline: 'asyncio.timeout() — cooperative cancellation',
     affects: ['Timeout Bar', 'Seat Map', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio.timeout(5) context manager',
       what: 'Reserves a seat with a 5-second TTL. When time runs out, the seat is auto-released.',
-      why: 'asyncio.timeout() uses cooperative cancellation - no polling threads. The CancelledError propagates up, cleanup code runs in the except block, and the event loop stays fully free.',
+      why: 'asyncio.timeout() uses cooperative cancellation — no polling threads. The CancelledError propagates up, cleanup code runs in the except block, and the event loop stays fully free.',
       code: 'async with asyncio.timeout(300): …',
     },
   },
@@ -61,12 +60,12 @@ const SCENARIOS: Scenario[] = [
     name: 'semaphore',
     icon: '🛡',
     label: 'Semaphore Guard',
-    tagline: 'asyncio.Semaphore(10) - Stripe rate cap',
+    tagline: 'asyncio.Semaphore(10) — Stripe rate cap',
     affects: ['Semaphore Gauge', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio.Semaphore with 10 permits',
       what: '20 concurrent Stripe calls dispatched; at most 10 run simultaneously.',
-      why: "Stripe's API has rate limits. A Semaphore in the gateway layer enforces a hard cap without a thread pool or external queue. Callers await the semaphore - no busy-wait, no dropped requests.",
+      why: "Stripe's API has rate limits. A Semaphore in the gateway layer enforces a hard cap without a thread pool or external queue. Callers await the semaphore — no busy-wait, no dropped requests.",
       code: 'async with self._semaphore: await stripe.charge(…)',
     },
   },
@@ -74,12 +73,12 @@ const SCENARIOS: Scenario[] = [
     name: 'broadcast',
     icon: '📡',
     label: 'WS Broadcast',
-    tagline: 'asyncio.gather() - fan-out to all clients',
+    tagline: 'asyncio.gather() — fan-out to all clients',
     affects: ['Seat Map', 'Concurrency Layers'],
     tooltip: {
       mechanism: 'asyncio.gather(return_exceptions=True)',
       what: '30 rapid seat updates fan-out to every connected WebSocket client in parallel.',
-      why: 'gather() sends all frames concurrently in the same event loop tick. return_exceptions=True ensures one dead client never stalls the broadcast - dead sockets are pruned after each round.',
+      why: 'gather() sends all frames concurrently in the same event loop tick. return_exceptions=True ensures one dead client never stalls the broadcast — dead sockets are pruned after each round.',
       code: 'await asyncio.gather(*[ws.send_json(p) for ws in conns], return_exceptions=True)',
     },
   },
@@ -87,12 +86,12 @@ const SCENARIOS: Scenario[] = [
     name: 'outbox',
     icon: '📬',
     label: 'Outbox Relay',
-    tagline: 'Transactional Outbox - dual-write eliminator',
+    tagline: 'Transactional Outbox — dual-write eliminator',
     affects: ['Concurrency Layers', 'Event Log'],
     tooltip: {
       mechanism: 'Transactional Outbox + background relay worker',
       what: 'Ticket confirmation and outbox message committed in one DB transaction. A background asyncio task polls and publishes to Redis Streams.',
-      why: 'Solves the dual-write problem: without an outbox, a crash between DB write and event publish silently loses the event. Here both writes are atomic - the relay always has a record to publish.',
+      why: 'Solves the dual-write problem: without an outbox, a crash between DB write and event publish silently loses the event. Here both writes are atomic — the relay always has a record to publish.',
       code: 'session.add(OutboxMessage(…))  # same tx as ticket update',
     },
   },
@@ -129,6 +128,7 @@ function Tooltip({ scenario }: { scenario: Scenario }) {
 export function ScenarioPanel() {
   const runningScenario = useStore((s) => s.runningScenario)
   const setRunningScenario = useStore((s) => s.setRunningScenario)
+  const setLastScenario = useStore((s) => s.setLastScenario)
   const resetScenarioState = useStore((s) => s.resetScenarioState)
   const addLogEntry = useStore((s) => s.addLogEntry)
   const [expandedTooltip, setExpandedTooltip] = useState<ScenarioName | null>(null)
@@ -136,9 +136,10 @@ export function ScenarioPanel() {
   const runScenario = useCallback(
     async (name: ScenarioName) => {
       if (runningScenario) return
-      // Reset all transient state before starting a new scenario
+      // Reset all transient component state before starting fresh
       resetScenarioState()
       setRunningScenario(name)
+      setLastScenario(name)
       addLogEntry({
         id: crypto.randomUUID(),
         timestamp: new Date().toLocaleTimeString(),
@@ -162,12 +163,20 @@ export function ScenarioPanel() {
           message: `■ Scenario ${name} failed: ${err instanceof Error ? err.message : 'unknown error'}`,
         })
       } finally {
-        // Reset all transient state back to defaults after scenario completes
-        setTimeout(() => resetScenarioState(), 1500)
+        // Don't auto-reset — let user see final state.
+        // The backend's _scenario_done() will reset WS-driven state
+        // (layer, semaphore, timeout) after a delay anyway.
+        // We only clear the "running" status here.
         setRunningScenario(null)
       }
     },
-    [runningScenario, setRunningScenario, resetScenarioState, addLogEntry],
+    [
+      runningScenario,
+      setRunningScenario,
+      setLastScenario,
+      resetScenarioState,
+      addLogEntry,
+    ],
   )
 
   const toggleTooltip = (name: ScenarioName, e: React.MouseEvent) => {

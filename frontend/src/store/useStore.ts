@@ -3,6 +3,7 @@ import type {
   ConcurrencyLayer,
   EventLogEntry,
   SagaStep,
+  ScenarioName,
   Seat,
   SemaphoreState,
   ThroughputPoint,
@@ -11,7 +12,7 @@ import type {
 const MAX_LOG_ENTRIES = 60
 const MAX_THROUGHPUT_POINTS = 60
 
-const DEFAULT_SAGA_STEPS: SagaStep[] = [
+export const DEFAULT_SAGA_STEPS: SagaStep[] = [
   { name: 'validate', status: 'pending' },
   { name: 'reserve', status: 'pending' },
   { name: 'charge', status: 'pending' },
@@ -27,12 +28,10 @@ interface AppState {
   seats: Seat[]
   setSeats: (seats: Seat[]) => void
   updateSeat: (seatId: number, status: Seat['status']) => void
-  clearSeats: () => void
 
   // SAGA visualizer
   sagaSteps: SagaStep[]
   setSagaSteps: (steps: SagaStep[]) => void
-  resetSagaSteps: () => void
 
   // Timeout progress
   timeoutProgress: number
@@ -58,10 +57,12 @@ interface AppState {
   setActiveLayer: (layer: ConcurrencyLayer | null) => void
 
   // Scenario running state
-  runningScenario: string | null
-  setRunningScenario: (name: string | null) => void
+  runningScenario: ScenarioName | null
+  setRunningScenario: (name: ScenarioName | null) => void
+  lastScenario: ScenarioName | null
+  setLastScenario: (name: ScenarioName | null) => void
 
-  // Reset all transient scenario state back to defaults
+  // Reset transient WS-driven state before a new scenario starts
   resetScenarioState: () => void
 }
 
@@ -77,11 +78,9 @@ export const useStore = create<AppState>((set) => ({
         s.id === seatId ? { ...s, status } : s,
       ),
     })),
-  clearSeats: () => set({ seats: [] }),
 
   sagaSteps: DEFAULT_SAGA_STEPS,
   setSagaSteps: (steps) => set({ sagaSteps: steps }),
-  resetSagaSteps: () => set({ sagaSteps: DEFAULT_SAGA_STEPS }),
 
   timeoutProgress: 0,
   timeoutActive: false,
@@ -109,14 +108,18 @@ export const useStore = create<AppState>((set) => ({
 
   runningScenario: null,
   setRunningScenario: (name) => set({ runningScenario: name }),
+  lastScenario: null,
+  setLastScenario: (name) => set({ lastScenario: name }),
 
+  // Resets scenario visuals before each run; the event log stays intact.
+  // Called at the START of each scenario so we begin with a clean slate.
   resetScenarioState: () =>
     set({
+      seats: [],
       sagaSteps: DEFAULT_SAGA_STEPS,
       timeoutProgress: 0,
       timeoutActive: false,
       semaphore: { active: 0, queued: 0, total: 10 },
       activeLayer: null,
-      // seats keep their last state so user can see result; clear with next scenario
     }),
 }))
