@@ -23,21 +23,21 @@ export function SagaVisualizer() {
       <h2 className="text-sm font-semibold text-text-dim uppercase tracking-wider mb-3">
         SAGA Steps
       </h2>
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 snap-x hide-scrollbar">
         {steps.map((step, i) => (
-          <div key={step.name} className="flex items-center gap-2 flex-1">
+          <div key={step.name} className="flex items-center gap-2 flex-shrink-0 snap-start">
             <div
               className={`
-                flex-1 flex flex-col items-center py-3 px-2 rounded-md border text-xs font-mono
+                w-16 flex-none flex flex-col items-center py-2 px-1 rounded-md border text-xs font-mono
                 ${STATUS_STYLES[step.status]}
               `}
             >
-              <span className="text-lg mb-1">{STEP_ICONS[step.name] ?? '?'}</span>
-              <span className="font-semibold">{step.name}</span>
-              <span className="text-[10px] mt-0.5 opacity-70">{step.status}</span>
+              <span className="text-lg mb-0.5">{STEP_ICONS[step.name] ?? '?'}</span>
+              <span className="font-semibold text-[10px] leading-tight text-center">{step.name}</span>
+              <span className="text-[9px] mt-0.5 opacity-70 leading-none">{step.status}</span>
             </div>
             {i < steps.length - 1 && (
-              <span className="text-text-dim text-xs">&rarr;</span>
+              <span className="text-text-dim text-xs flex-shrink-0">&rarr;</span>
             )}
           </div>
         ))}

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Header } from './components/Header'
+import { IntroBanner } from './components/IntroBanner'
 import { SeatMap } from './components/SeatMap'
 import { ScenarioPanel } from './components/ScenarioPanel'
 import { SagaVisualizer } from './components/SagaVisualizer'
@@ -30,23 +31,23 @@ function Dashboard() {
   useWsDispatch(messages)
 
   return (
-    <div className="flex-1 grid grid-cols-[260px_1fr_280px] gap-4 p-4 min-h-0">
+    <div className="flex-1 grid grid-cols-[280px_1fr_300px] gap-4 p-4 min-h-0 overflow-hidden">
       {/* Left column — Scenarios + controls */}
-      <div className="flex flex-col gap-4 overflow-y-auto">
+      <div className="flex flex-col gap-4 overflow-y-auto hide-scrollbar">
         <ScenarioPanel />
         <SagaVisualizer />
         <TimeoutBar />
         <SemaphoreGauge />
       </div>
 
-      {/* Center — Seat Map + Metrics */}
-      <div className="flex flex-col gap-4 overflow-y-auto">
+      {/* Center — Seat Map + Layers + Metrics */}
+      <div className="flex flex-col gap-4 overflow-y-auto hide-scrollbar">
         <SeatMap />
         <ConcurrencyLayers />
         <MetricsDashboard />
       </div>
 
-      {/* Right column — Event Log */}
+      {/* Right column — Event Log (fixed height, internal scroll) */}
       <div className="flex flex-col min-h-0">
         <EventLog />
       </div>
@@ -57,8 +58,9 @@ function Dashboard() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex flex-col h-screen bg-bg text-text">
+      <div className="flex flex-col h-screen bg-bg text-text overflow-hidden">
         <Header />
+        <IntroBanner />
         <Dashboard />
       </div>
     </QueryClientProvider>

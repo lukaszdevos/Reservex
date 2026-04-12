@@ -13,12 +13,12 @@ export function SemaphoreGauge() {
           {active}/{total} active &middot; {queued} queued
         </span>
       </div>
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
         {Array.from({ length: total }, (_, i) => (
           <div
             key={i}
             className={`
-              flex-1 h-6 rounded-sm transition-colors duration-200
+              flex-1 h-6 w-5 shrink-0 rounded-sm transition-colors duration-200
               ${i < active ? 'bg-accent shadow-[0_0_8px_rgba(124,58,237,0.4)]' : 'bg-surface-alt border border-border'}
             `}
           />
