@@ -60,7 +60,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="flex flex-col h-screen bg-bg text-text overflow-hidden">
         <Header />
-        <IntroBanner />
+        <div className="flex-shrink-0">
+          <IntroBanner />
+        </div>
         <Dashboard />
       </div>
     </QueryClientProvider>
