@@ -7,6 +7,7 @@ Implements: TicketRepository (domain.ticketing.repository)
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy import update as sqla_update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -56,13 +57,6 @@ def _ticket_to_new_model(ticket: Ticket) -> TicketModel:
     )
 
 
-def _update_ticket_model(model: TicketModel, ticket: Ticket) -> None:
-    model.status = ticket.status.value
-    model.reserved_by = ticket.reserved_by
-    model.version = ticket.version
-    model.updated_at = datetime.now(UTC)
-
-
 class PostgresTicketRepository:
     """PostgreSQL-backed repository for the Ticket aggregate.
 
@@ -93,10 +87,14 @@ class PostgresTicketRepository:
         return _model_to_ticket(model) if model is not None else None
 
     async def add(self, ticket: Ticket) -> None:
+        # populate_existing=True forces SQLAlchemy to reload from DB even if
+        # the object is already in the identity map, preventing stale-cache bugs
+        # when compensation logic re-reads a ticket loaded earlier in the saga.
         result = await self._session.execute(
             select(TicketModel)
             .where(TicketModel.id == ticket.id)
             .options(selectinload(TicketModel.reservation))
+            .execution_options(populate_existing=True)
         )
         existing = result.scalar_one_or_none()
         if existing is None:
@@ -111,9 +109,25 @@ class PostgresTicketRepository:
                     )
                 )
             return
-        if existing.version != ticket.version - 1:
+
+        # Atomic optimistic-lock check: the UPDATE only succeeds when the row's
+        # version still matches the pre-increment value.  An application-level
+        # SELECT+compare is not atomic under concurrent sessions.
+        update_result = await self._session.execute(
+            sqla_update(TicketModel)
+            .where(TicketModel.id == ticket.id)
+            .where(TicketModel.version == ticket.version - 1)
+            .values(
+                status=ticket.status.value,
+                reserved_by=ticket.reserved_by,
+                version=ticket.version,
+                updated_at=datetime.now(UTC),
+            )
+            .returning(TicketModel.id)
+        )
+        if update_result.scalar_one_or_none() is None:
             raise OptimisticLockConflict(ticket.id, ticket.version - 1)
-        _update_ticket_model(existing, ticket)
+
         await self._sync_reservation(existing, ticket)
 
     async def _sync_reservation(
