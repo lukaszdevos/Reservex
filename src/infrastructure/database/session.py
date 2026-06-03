@@ -9,7 +9,9 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-_DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
+from infrastructure.database.url import make_async_database_url
+
+_DATABASE_URL: str = make_async_database_url(os.environ.get("DATABASE_URL", ""))
 
 _engine = create_async_engine(_DATABASE_URL, echo=False) if _DATABASE_URL else None
 

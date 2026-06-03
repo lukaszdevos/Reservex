@@ -24,6 +24,7 @@ from infrastructure.api.middleware.idempotency import IdempotencyMiddleware
 from infrastructure.api.middleware.rate_limit import configure_limiter
 from infrastructure.api.routes import demo, payments, tickets
 from infrastructure.api.websockets.seat_map import SeatMapBroadcaster, ws_router
+from infrastructure.database.url import make_async_database_url
 from infrastructure.observability.logging import configure_structlog
 from infrastructure.observability.metrics import configure_metrics
 from infrastructure.observability.tracing import configure_otel
@@ -43,7 +44,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_metrics()
     configure_otel(settings.otel_exporter_otlp_endpoint, settings.service_name)
 
-    engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=True)
+    engine = create_async_engine(
+        make_async_database_url(settings.database_url),
+        echo=False,
+        pool_pre_ping=True,
+    )
     session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
         engine, expire_on_commit=False, class_=AsyncSession
     )
